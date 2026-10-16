@@ -3,226 +3,861 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EVO Remote</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-select=no">
+  <title>EVO Control</title>
   <style>
     :root {
-      color-scheme: dark light;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color-scheme: dark;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --bg-panel: #202124;
+      --bg-chassis: #191a1d;
+      --bg-knob: #1c1d20;
+      --led-active: #ffffff;
+      --led-inactive: #313338;
+      --led-glow: rgba(255, 255, 255, 0.7);
+      --green-evo: #00ea76;
+      --green-smartgain: #35c759;
+      --red-mute: #ff3b30;
+      --amber-48v: #ff453a;
+      --text-main: #f2f2f7;
+      --text-muted: #8e8e93;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
       margin: 0;
-      padding: 1rem;
-      background: #0f172a;
-      color: #e2e8f0;
-      line-height: 1.5;
-    }
-
-    header {
-      margin-bottom: 1rem;
-    }
-
-    main {
-      display: grid;
-      gap: 1rem;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    }
-
-    section {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      border-radius: 0.75rem;
-      padding: 1rem;
-    }
-
-    pre {
-      background: rgba(2, 6, 23, 0.9);
-      border-radius: 0.5rem;
-      padding: 0.75rem;
-      max-height: 320px;
-      overflow: auto;
-      font-size: 0.85rem;
-    }
-
-    .row {
+      padding: 0;
+      background: #0d0e11;
+      color: var(--text-main);
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    button {
-      border-radius: 0.5rem;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(30, 41, 59, 0.9);
-      color: inherit;
-      padding: 0.5rem 0.9rem;
+    /* Floating Window / Chassis */
+    .evo-window {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg-panel);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Window Header */
+    .evo-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      background: #18191b;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+
+    .window-dots {
+      position: absolute;
+      left: 14px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot.close { background: #ff5f56; }
+    .dot.min { background: #ffbd2e; }
+    .dot.max { background: #27c93f; }
+
+    .window-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    .conn-status-dot {
+      position: absolute;
+      right: 14px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff453a;
+      transition: background 0.3s;
+    }
+
+    .conn-status-dot.connected {
+      background: var(--green-evo);
+      box-shadow: 0 0 8px var(--green-evo);
+    }
+
+    /* Main Console Surface */
+    .evo-surface {
+      padding: 24px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Large Central Knob & LED Halo Ring */
+    .main-dial-container {
+      position: relative;
+      width: 250px;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      touch-action: none;
+    }
+
+    .halo-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .halo-dot {
+      transition: fill 0.08s ease, filter 0.08s ease;
+    }
+
+    .main-knob {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #2a2c31 0%, #17181a 75%, #0f1012 100%);
+      border: 3px solid #282a2e;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8), inset 0 3px 6px rgba(255, 255, 255, 0.08), inset 0 -6px 12px rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      position: relative;
+      transition: transform 0.05s ease-out;
+    }
+
+    .main-knob:active {
+      cursor: grabbing;
+    }
+
+    .knob-indent {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 65% 65%, #141517 0%, #1e1f23 80%, #25272c 100%);
+      box-shadow: inset 0 8px 16px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .knob-val-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .knob-unit-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Steppers Bar (-2, -0.5, +0.5, +2 dB) */
+    .steppers-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: -10px;
+      margin-bottom: 22px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 6px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .step-btn {
+      background: #1a1b1e;
+      border: 1px solid #2d3036;
+      border-radius: 10px;
+      color: #999;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .step-btn:hover {
+      background: #25272c;
+      color: #fff;
+      border-color: #444852;
+    }
+
+    .step-btn:active {
+      transform: scale(0.94);
+      background: #2c2f36;
+      color: var(--green-evo);
+      border-color: var(--green-evo);
+    }
+
+    /* Middle Row: Channels & Center Icons */
+    .controls-row {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 10px;
+      margin-bottom: 22px;
+    }
+
+    /* Channel Units (Left & Right) */
+    .channel-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
       cursor: pointer;
     }
 
-    button[disabled] {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .channel-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
 
-    .status {
-      font-weight: 600;
+    .mini-dial-wrapper {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .log {
-      margin: 0;
+    .mini-dial-svg {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .mini-dial-track {
+      stroke: #2c2e33;
+      fill: none;
+      stroke-width: 4;
+    }
+
+    .mini-dial-bar {
+      stroke: var(--green-evo);
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.1s ease;
+    }
+
+    .mini-knob {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #2f3136 0%, #18191c 100%);
+      border: 1px solid #3c3e44;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+      position: relative;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .channel-unit.active .mini-knob {
+      border-color: var(--green-evo);
+      box-shadow: 0 0 12px rgba(0, 234, 118, 0.4);
+    }
+
+    .channel-num-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #aaa;
+      transition: color 0.2s;
+    }
+
+    .channel-unit.active .channel-num-label {
+      color: #fff;
+    }
+
+    /* Channel Sub-buttons (48V & Mute) */
+    .channel-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .round-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #1a1b1e;
+      border: 1px solid #2f3136;
+      color: #777;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+      transition: all 0.15s ease;
+    }
+
+    .round-btn:hover {
+      background: #24262b;
+      color: #bbb;
+    }
+
+    .round-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* 48V Active State */
+    .round-btn.btn-48v.active {
+      background: #2b1111;
+      border-color: var(--amber-48v);
+      color: var(--amber-48v);
+      box-shadow: 0 0 10px rgba(255, 69, 58, 0.5), inset 0 0 4px rgba(255, 69, 58, 0.4);
+    }
+
+    /* Mute Active State */
+    .round-btn.btn-mute.active {
+      background: #2b1111;
+      border-color: var(--red-mute);
+      color: var(--red-mute);
+      box-shadow: 0 0 10px rgba(255, 59, 48, 0.5);
+    }
+
+    /* Center Action Cluster */
+    .center-cluster {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+
+    .center-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #18191c;
+      border: 1px solid #2c2e33;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      cursor: pointer;
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.05), 0 3px 6px rgba(0,0,0,0.5);
+      transition: all 0.15s ease;
+    }
+
+    .center-btn svg {
+      width: 17px;
+      height: 17px;
+      fill: currentColor;
+    }
+
+    .center-btn:hover {
+      background: #222428;
+      color: #aaa;
+    }
+
+    .center-btn.active {
+      border-color: #888;
+      color: #fff;
+      background: #2a2d33;
+    }
+
+    /* Bottom SmartGain Pill */
+    .smartgain-pill {
+      width: 160px;
+      height: 38px;
+      border-radius: 19px;
+      background: var(--green-smartgain);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(53, 199, 89, 0.35);
+      border: none;
+      transition: all 0.2s ease;
+      margin-bottom: 18px;
+    }
+
+    .smartgain-pill:hover {
+      background: #39db62;
+      box-shadow: 0 6px 20px rgba(53, 199, 89, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .smartgain-pill:active {
+      transform: translateY(1px);
+    }
+
+    .smartgain-pill.busy {
+      animation: pulse-smartgain 1.2s infinite alternate;
+      background: #28a745;
+    }
+
+    @keyframes pulse-smartgain {
+      from { box-shadow: 0 0 10px rgba(53, 199, 89, 0.4); }
+      to { box-shadow: 0 0 25px rgba(53, 199, 89, 0.9); }
+    }
+
+    .smartgain-pill svg {
+      width: 22px;
+      height: 22px;
+      fill: #ffffff;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+    }
+
+    /* Audient EVO Infinity Logo at bottom */
+    .evo-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.35;
+      transition: opacity 0.2s;
+    }
+
+    .evo-logo:hover {
+      opacity: 0.7;
+    }
+
+    .evo-logo svg {
+      width: 26px;
+      height: 26px;
+      fill: #fff;
     }
   </style>
 </head>
 
 <body>
-  <header>
-    <h1>EVO Remote</h1>
-    <p>Cliente mínimo para validar el contrato <code>evo-ipc</code> sobre <code>/ws</code>.</p>
-    <div class="row">
-      <span class="status" id="status">Desconectado</span>
-      <button id="connect">Conectar</button>
-      <button id="disconnect" disabled>Desconectar</button>
-      <button id="resync" disabled>Enviar resync</button>
-      <button id="toggle-mute" disabled>Mutear canal 0</button>
-    </div>
-  </header>
-  <main>
-    <section>
-      <h2>Handshake / Snapshot</h2>
-      <pre class="log" id="hello"></pre>
-    </section>
-    <section>
-      <h2>Mensajes recibidos</h2>
-      <pre class="log" id="log"></pre>
-    </section>
-    <section>
-      <h2>Último patch / ack / err</h2>
-      <pre class="log" id="last"></pre>
-    </section>
-  </main>
-  <script>
-    const statusEl = document.getElementById("status");
-    const connectEl = document.getElementById("connect");
-    const disconnectEl = document.getElementById("disconnect");
-    const resyncEl = document.getElementById("resync");
-    const toggleMuteEl = document.getElementById("toggle-mute");
-    const logEl = document.getElementById("log");
-    const helloEl = document.getElementById("hello");
-    const lastEl = document.getElementById("last");
 
+  <div class="evo-window">
+    <!-- Window Titlebar -->
+    <div class="evo-titlebar">
+      <div class="window-dots">
+        <div class="dot close"></div>
+        <div class="dot min"></div>
+        <div class="dot max"></div>
+      </div>
+      <div class="window-title" id="title-text">EVO Control — EVO 4</div>
+      <div class="conn-status-dot" id="conn-indicator" title="Desconectado"></div>
+    </div>
+
+    <!-- Main Console Surface -->
+    <div class="evo-surface">
+
+      <!-- Central Dial with Halo LEDs -->
+      <div class="main-dial-container" id="dial-touch-zone">
+        <svg class="halo-svg" id="halo-svg" viewBox="0 0 250 250"></svg>
+        <div class="main-knob" id="main-knob">
+          <div class="knob-indent">
+            <div class="knob-val-text" id="knob-val">32.5</div>
+            <div class="knob-unit-text" id="knob-unit">dB GAIN</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Step Buttons -->
+      <div class="steppers-bar">
+        <button class="step-btn" data-step="-2.0">-2 dB</button>
+        <button class="step-btn" data-step="-0.5">-0.5</button>
+        <button class="step-btn" data-step="+0.5">+0.5</button>
+        <button class="step-btn" data-step="+2.0">+2 dB</button>
+      </div>
+
+      <!-- Controls Row: Channel 1, Center Icons, Channel 2 -->
+      <div class="controls-row">
+
+        <!-- Channel 1 -->
+        <div class="channel-unit active" id="ch-unit-0">
+          <div class="channel-badge" id="ch-select-0">
+            <div class="mini-dial-wrapper">
+              <svg class="mini-dial-svg" viewBox="0 0 48 48">
+                <circle class="mini-dial-track" cx="24" cy="24" r="20"></circle>
+                <circle class="mini-dial-bar" id="mini-bar-0" cx="24" cy="24" r="20"
+                  stroke-dasharray="125.6" stroke-dashoffset="62.8"></circle>
+              </svg>
+              <div class="mini-knob"></div>
+            </div>
+            <div class="channel-num-label">1</div>
+          </div>
+          <div class="channel-buttons">
+            <div class="round-btn btn-48v" id="btn-48v-0">48V</div>
+            <div class="round-btn btn-mute" id="btn-mute-0">M</div>
+          </div>
+        </div>
+
+        <!-- Center Cluster Icons -->
+        <div class="center-cluster">
+          <!-- Monitor Mix / Inputs -->
+          <button class="center-btn" id="btn-mode-mix" title="Mezcla Monitor">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 18h2v-6H4v6zm6 0h2v-12h-2v12zm6 0h2v-9h-2v9z"/>
+            </svg>
+          </button>
+          <!-- Master Mute -->
+          <button class="center-btn" id="btn-master-mute" title="Mute General">
+            <span style="font-weight:700; font-size:13px;">M</span>
+          </button>
+          <!-- Output / Speaker -->
+          <button class="center-btn" id="btn-mode-out" title="Volumen Salida">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Channel 2 -->
+        <div class="channel-unit" id="ch-unit-1">
+          <div class="channel-badge" id="ch-select-1">
+            <div class="mini-dial-wrapper">
+              <svg class="mini-dial-svg" viewBox="0 0 48 48">
+                <circle class="mini-dial-track" cx="24" cy="24" r="20"></circle>
+                <circle class="mini-dial-bar" id="mini-bar-1" cx="24" cy="24" r="20"
+                  stroke-dasharray="125.6" stroke-dashoffset="125.6"></circle>
+              </svg>
+              <div class="mini-knob"></div>
+            </div>
+            <div class="channel-num-label">2</div>
+          </div>
+          <div class="channel-buttons">
+            <div class="round-btn btn-48v" id="btn-48v-1">48V</div>
+            <div class="round-btn btn-mute" id="btn-mute-1">M</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SmartGain Pill Button -->
+      <div class="smartgain-pill" id="smartgain-btn" title="SmartGain">
+        <!-- Mic Icon with broadcast rings -->
+        <svg viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </div>
+
+      <!-- Audient EVO Logo -->
+      <div class="evo-logo">
+        <svg viewBox="0 0 32 32">
+          <!-- Infinity symbol -->
+          <path d="M22 8c-3.1 0-5.3 2.1-6 3.1-.7-1-2.9-3.1-6-3.1C5.6 8 2 11.6 2 16s3.6 8 8 8c3.1 0 5.3-2.1 6-3.1.7 1 2.9 3.1 6 3.1 4.4 0 8-3.6 8-8s-3.6-8-8-8zm-12 12c-2.2 0-4-1.8-4-4s1.8-4 4-4c2.4 0 4.1 2.5 5.2 4-1.1 1.5-2.8 4-5.2 4zm12 0c-2.4 0-4.1-2.5-5.2-4 1.1-1.5 2.8-4 5.2-4 2.2 0 4 1.8 4 4s-1.8 4-4 4z"/>
+        </svg>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // State management
     let ws = null;
     let nextId = 1;
-    let muted = false;
+    let activeChannel = 0; // 0 or 1
+    let channels = [
+      { gain_db: 32.5, muted: false, phantom: false },
+      { gain_db: 0.0, muted: false, phantom: false }
+    ];
+    let smartgainState = "idle";
+    const MIN_DB = 0.0;
+    const MAX_DB = 56.0;
+    const TOTAL_LEDS = 24;
 
-    function setStatus(text) {
-      statusEl.textContent = text;
+    // Elements
+    const connIndicator = document.getElementById("conn-indicator");
+    const haloSvg = document.getElementById("halo-svg");
+    const mainKnob = document.getElementById("main-knob");
+    const knobVal = document.getElementById("knob-val");
+    const knobUnit = document.getElementById("knob-unit");
+    const dialTouchZone = document.getElementById("dial-touch-zone");
+    const smartgainBtn = document.getElementById("smartgain-btn");
+
+    // Initialize Halo Ring SVG Dots
+    const haloDots = [];
+    function buildHaloRing() {
+      haloSvg.innerHTML = "";
+      const cx = 125;
+      const cy = 125;
+      const radius = 100;
+      const startAngle = 135 * (Math.PI / 180);
+      const sweepAngle = 270 * (Math.PI / 180);
+
+      for (let i = 0; i < TOTAL_LEDS; i++) {
+        const angle = startAngle + (i / (TOTAL_LEDS - 1)) * sweepAngle;
+        const x = cx + radius * Math.cos(angle);
+        const y = cy + radius * Math.sin(angle);
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", x);
+        circle.setAttribute("cy", y);
+        circle.setAttribute("r", 4.2);
+        circle.setAttribute("class", "halo-dot");
+        circle.setAttribute("fill", "var(--led-inactive)");
+        haloSvg.appendChild(circle);
+        haloDots.push(circle);
+      }
+    }
+    buildHaloRing();
+
+    function updateHaloRing(gainDb) {
+      const ratio = Math.max(0, Math.min(1, (gainDb - MIN_DB) / (MAX_DB - MIN_DB)));
+      const activeCount = Math.round(ratio * TOTAL_LEDS);
+
+      haloDots.forEach((dot, idx) => {
+        if (idx < activeCount) {
+          dot.setAttribute("fill", "var(--led-active)");
+          dot.style.filter = "drop-shadow(0 0 4px var(--led-glow))";
+        } else {
+          dot.setAttribute("fill", "var(--led-inactive)");
+          dot.style.filter = "none";
+        }
+      });
     }
 
-    function log(text) {
-      logEl.textContent = `[${new Date().toLocaleTimeString()}] ${text}\n` + logEl.textContent;
+    function updateUI() {
+      const ch = channels[activeChannel];
+      if (!ch) return;
+
+      // Update Central Knob
+      knobVal.textContent = ch.gain_db.toFixed(1);
+      knobUnit.textContent = `CH ${activeChannel + 1} GAIN`;
+      updateHaloRing(ch.gain_db);
+
+      // Update Channel 0 UI
+      const bar0 = document.getElementById("mini-bar-0");
+      const circ = 125.6;
+      const offset0 = circ * (1 - (channels[0].gain_db / MAX_DB));
+      bar0.style.strokeDashoffset = offset0;
+      document.getElementById("btn-48v-0").classList.toggle("active", !!channels[0].phantom);
+      document.getElementById("btn-mute-0").classList.toggle("active", !!channels[0].muted);
+
+      // Update Channel 1 UI
+      const bar1 = document.getElementById("mini-bar-1");
+      const offset1 = circ * (1 - (channels[1].gain_db / MAX_DB));
+      bar1.style.strokeDashoffset = offset1;
+      document.getElementById("btn-48v-1").classList.toggle("active", !!channels[1].phantom);
+      document.getElementById("btn-mute-1").classList.toggle("active", !!channels[1].muted);
+
+      // Update active channel highlight
+      document.getElementById("ch-unit-0").classList.toggle("active", activeChannel === 0);
+      document.getElementById("ch-unit-1").classList.toggle("active", activeChannel === 1);
     }
 
-    function setLast(text) {
-      lastEl.textContent = text;
-    }
-
-    function enableActions(connected) {
-      connectEl.disabled = connected;
-      disconnectEl.disabled = !connected;
-      resyncEl.disabled = !connected;
-      toggleMuteEl.disabled = !connected;
-    }
-
-    connectEl.addEventListener("click", () => {
-      const protocol = location.protocol === "https:" ? "wss" : "ws";
-      const url = `${protocol}://${location.host}/ws`;
-      ws = new WebSocket(url);
-
-      ws.addEventListener("open", () => {
-        setStatus("Conectado");
-        enableActions(true);
-        log(`WS abierto → ${url}`);
-      });
-
-      ws.addEventListener("message", (event) => {
-        let msg;
-        try {
-          msg = JSON.parse(event.data);
-        } catch (err) {
-          log(`Mensaje no JSON: ${event.data}`);
-          return;
-        }
-        const t = msg.t;
-        if (t === "hello") {
-          helloEl.textContent = JSON.stringify(msg, null, 2);
-          log("Recibido hello");
-          return;
-        }
-        if (t === "snapshot") {
-          log(`snapshot rev=${msg.rev}`);
-          setLast(JSON.stringify(msg, null, 2));
-          return;
-        }
-        if (t === "patch") {
-          log(`patch rev=${msg.rev}`);
-          setLast(JSON.stringify(msg, null, 2));
-          return;
-        }
-        if (t === "ack") {
-          log(`ack id=${msg.id}`);
-          setLast(JSON.stringify(msg, null, 2));
-          return;
-        }
-        if (t === "err") {
-          log(`err id=${msg.id} code=${msg.code}`);
-          setLast(JSON.stringify(msg, null, 2));
-          return;
-        }
-        if (t === "connection") {
-          log(`connection state=${msg.state}`);
-          setLast(JSON.stringify(msg, null, 2));
-          return;
-        }
-        log(`Mensaje desconocido: ${t}`);
-      });
-
-      ws.addEventListener("close", (ev) => {
-        setStatus(`Desconectado (code=${ev.code})`);
-        enableActions(false);
-        log(`Cerrado: code=${ev.code} reason=${ev.reason || "-"}`);
-        ws = null;
-      });
-
-      ws.addEventListener("error", () => {
-        log("Error de WebSocket");
-      });
+    // Channel Selection
+    document.getElementById("ch-select-0").addEventListener("click", () => {
+      activeChannel = 0;
+      updateUI();
     });
 
-    disconnectEl.addEventListener("click", () => {
-      if (ws) {
-        ws.close();
+    document.getElementById("ch-select-1").addEventListener("click", () => {
+      activeChannel = 1;
+      updateUI();
+    });
+
+    // 48V Buttons
+    document.getElementById("btn-48v-0").addEventListener("click", (e) => {
+      e.stopPropagation();
+      togglePhantom(0);
+    });
+
+    document.getElementById("btn-48v-1").addEventListener("click", (e) => {
+      e.stopPropagation();
+      togglePhantom(1);
+    });
+
+    function togglePhantom(chIdx) {
+      const current = channels[chIdx].phantom;
+      if (!current) {
+        if (!confirm(`¿Activar +48V Phantom Power en el Canal ${chIdx + 1}?`)) return;
+      }
+      sendCmd({ op: "set_phantom", ch: chIdx, on: !current });
+    }
+
+    // Mute Buttons
+    document.getElementById("btn-mute-0").addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMute(0);
+    });
+
+    document.getElementById("btn-mute-1").addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMute(1);
+    });
+
+    function toggleMute(chIdx) {
+      sendCmd({ op: "set_mute", ch: chIdx, on: !channels[chIdx].muted });
+    }
+
+    // SmartGain Pill
+    smartgainBtn.addEventListener("click", () => {
+      if (smartgainState !== "idle") {
+        sendCmd({ op: "cancel_smartgain" });
+      } else {
+        sendCmd({ op: "trigger_smartgain" });
       }
     });
 
-    resyncEl.addEventListener("click", () => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const id = nextId++;
-      const msg = { t: "resync", id };
-      ws.send(JSON.stringify(msg));
-      log(`→ resync id=${id}`);
+    // Step Buttons (+-0.5, +-2 dB)
+    document.querySelectorAll(".step-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const step = parseFloat(btn.dataset.step);
+        let newGain = Math.round((channels[activeChannel].gain_db + step) * 2) / 2;
+        newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+        if (newGain !== channels[activeChannel].gain_db) {
+          channels[activeChannel].gain_db = newGain;
+          updateUI();
+          sendCmd({ op: "set_gain", ch: activeChannel, db: newGain });
+        }
+      });
     });
 
-    toggleMuteEl.addEventListener("click", () => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const id = nextId++;
-      muted = !muted;
-      const msg = { t: "cmd", id, op: "set_mute", ch: 0, on: muted };
-      ws.send(JSON.stringify(msg));
-      toggleMuteEl.textContent = muted ? "Desmutear canal 0" : "Mutear canal 0";
-      log(`→ cmd set_mute ch=0 on=${muted} id=${id}`);
+    // Knob Drag / Rotary Interaction
+    let isDragging = false;
+    let startY = 0;
+    let startGain = 0;
+
+    dialTouchZone.addEventListener("pointerdown", (e) => {
+      isDragging = true;
+      startY = e.clientY;
+      startGain = channels[activeChannel].gain_db;
+      dialTouchZone.setPointerCapture(e.pointerId);
     });
+
+    dialTouchZone.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const deltaY = startY - e.clientY;
+      // Sensitivity: 120 pixels for full range
+      const deltaDb = (deltaY / 140) * (MAX_DB - MIN_DB);
+      let newGain = Math.round((startGain + deltaDb) * 2) / 2; // 0.5 step
+      newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+
+      if (newGain !== channels[activeChannel].gain_db) {
+        channels[activeChannel].gain_db = newGain;
+        updateUI();
+        sendCmd({ op: "set_gain", ch: activeChannel, db: newGain });
+      }
+    });
+
+    dialTouchZone.addEventListener("pointerup", (e) => {
+      isDragging = false;
+      dialTouchZone.releasePointerCapture(e.pointerId);
+    });
+
+    // Wheel support on knob
+    dialTouchZone.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const step = e.deltaY < 0 ? 0.5 : -0.5;
+      let newGain = Math.round((channels[activeChannel].gain_db + step) * 2) / 2;
+      newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+      if (newGain !== channels[activeChannel].gain_db) {
+        channels[activeChannel].gain_db = newGain;
+        updateUI();
+        sendCmd({ op: "set_gain", ch: activeChannel, db: newGain });
+      }
+    }, { passive: false });
+
+    // WebSocket IPC
+    function connect() {
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const url = `${protocol}://${location.host}/ws`;
+
+      ws = new WebSocket(url);
+
+      ws.addEventListener("open", () => {
+        connIndicator.className = "conn-status-dot connected";
+        connIndicator.title = "Conectado al Daemon";
+      });
+
+      ws.addEventListener("message", (event) => {
+        if (typeof event.data !== "string") return;
+        try {
+          const msg = JSON.parse(event.data);
+          handleMessage(msg);
+        } catch (e) {}
+      });
+
+      ws.addEventListener("close", () => {
+        connIndicator.className = "conn-status-dot";
+        connIndicator.title = "Desconectado";
+        setTimeout(connect, 2000);
+      });
+
+      ws.addEventListener("error", () => {
+        connIndicator.className = "conn-status-dot";
+      });
+    }
+
+    function sendCmd(cmd) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ t: "cmd", id: nextId++, ...cmd }));
+    }
+
+    function handleMessage(msg) {
+      if (msg.t === "snapshot") {
+        if (msg.state && msg.state.channels) {
+          channels[0] = { ...channels[0], ...msg.state.channels[0] };
+          if (msg.state.channels[1]) {
+            channels[1] = { ...channels[1], ...msg.state.channels[1] };
+          }
+        }
+        smartgainState = msg.state.smartgain || "idle";
+        smartgainBtn.classList.toggle("busy", smartgainState !== "idle");
+        updateUI();
+      } else if (msg.t === "patch") {
+        msg.ops.forEach(op => {
+          if (op.path.startsWith("ch/")) {
+            const parts = op.path.split("/");
+            const ch = parseInt(parts[1], 10);
+            const param = parts[2];
+            if (channels[ch]) {
+              if (param === "gain") channels[ch].gain_db = Number(op.v);
+              else if (param === "mute") channels[ch].muted = !!op.v;
+              else if (param === "phantom") channels[ch].phantom = !!op.v;
+            }
+          } else if (op.path === "smartgain") {
+            smartgainState = op.v || "idle";
+            smartgainBtn.classList.toggle("busy", smartgainState !== "idle");
+          }
+        });
+        updateUI();
+      }
+    }
+
+    connect();
   </script>
 </body>
 
