@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EVO Remote</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 1rem;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+
+    header {
+      margin-bottom: 1rem;
+    }
+
+    main {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    section {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    pre {
+      background: rgba(2, 6, 23, 0.9);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      max-height: 320px;
+      overflow: auto;
+      font-size: 0.85rem;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    button {
+      border-radius: 0.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(30, 41, 59, 0.9);
+      color: inherit;
+      padding: 0.5rem 0.9rem;
+      cursor: pointer;
+    }
+
+    button[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-weight: 600;
+    }
+
+    .log {
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>EVO Remote</h1>
+    <p>Cliente mínimo para validar el contrato <code>evo-ipc</code> sobre <code>/ws</code>.</p>
+    <div class="row">
+      <span class="status" id="status">Desconectado</span>
+      <button id="connect">Conectar</button>
+      <button id="disconnect" disabled>Desconectar</button>
+      <button id="resync" disabled>Enviar resync</button>
+      <button id="toggle-mute" disabled>Mutear canal 0</button>
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2>Handshake / Snapshot</h2>
+      <pre class="log" id="hello"></pre>
+    </section>
+    <section>
+      <h2>Mensajes recibidos</h2>
+      <pre class="log" id="log"></pre>
+    </section>
+    <section>
+      <h2>Último patch / ack / err</h2>
+      <pre class="log" id="last"></pre>
+    </section>
+  </main>
+  <script>
+    const statusEl = document.getElementById("status");
+    const connectEl = document.getElementById("connect");
+    const disconnectEl = document.getElementById("disconnect");
+    const resyncEl = document.getElementById("resync");
+    const toggleMuteEl = document.getElementById("toggle-mute");
+    const logEl = document.getElementById("log");
+    const helloEl = document.getElementById("hello");
+    const lastEl = document.getElementById("last");
+
+    let ws = null;
+    let nextId = 1;
+    let muted = false;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function log(text) {
+      logEl.textContent = `[${new Date().toLocaleTimeString()}] ${text}\n` + logEl.textContent;
+    }
+
+    function setLast(text) {
+      lastEl.textContent = text;
+    }
+
+    function enableActions(connected) {
+      connectEl.disabled = connected;
+      disconnectEl.disabled = !connected;
+      resyncEl.disabled = !connected;
+      toggleMuteEl.disabled = !connected;
+    }
+
+    connectEl.addEventListener("click", () => {
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const url = `${protocol}://${location.host}/ws`;
+      ws = new WebSocket(url);
+
+      ws.addEventListener("open", () => {
+        setStatus("Conectado");
+        enableActions(true);
+        log(`WS abierto → ${url}`);
+      });
+
+      ws.addEventListener("message", (event) => {
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (err) {
+          log(`Mensaje no JSON: ${event.data}`);
+          return;
+        }
+        const t = msg.t;
+        if (t === "hello") {
+          helloEl.textContent = JSON.stringify(msg, null, 2);
+          log("Recibido hello");
+          return;
+        }
+        if (t === "snapshot") {
+          log(`snapshot rev=${msg.rev}`);
+          setLast(JSON.stringify(msg, null, 2));
+          return;
+        }
+        if (t === "patch") {
+          log(`patch rev=${msg.rev}`);
+          setLast(JSON.stringify(msg, null, 2));
+          return;
+        }
+        if (t === "ack") {
+          log(`ack id=${msg.id}`);
+          setLast(JSON.stringify(msg, null, 2));
+          return;
+        }
+        if (t === "err") {
+          log(`err id=${msg.id} code=${msg.code}`);
+          setLast(JSON.stringify(msg, null, 2));
+          return;
+        }
+        if (t === "connection") {
+          log(`connection state=${msg.state}`);
+          setLast(JSON.stringify(msg, null, 2));
+          return;
+        }
+        log(`Mensaje desconocido: ${t}`);
+      });
+
+      ws.addEventListener("close", (ev) => {
+        setStatus(`Desconectado (code=${ev.code})`);
+        enableActions(false);
+        log(`Cerrado: code=${ev.code} reason=${ev.reason || "-"}`);
+        ws = null;
+      });
+
+      ws.addEventListener("error", () => {
+        log("Error de WebSocket");
+      });
+    });
+
+    disconnectEl.addEventListener("click", () => {
+      if (ws) {
+        ws.close();
+      }
+    });
+
+    resyncEl.addEventListener("click", () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const id = nextId++;
+      const msg = { t: "resync", id };
+      ws.send(JSON.stringify(msg));
+      log(`→ resync id=${id}`);
+    });
+
+    toggleMuteEl.addEventListener("click", () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const id = nextId++;
+      muted = !muted;
+      const msg = { t: "cmd", id, op: "set_mute", ch: 0, on: muted };
+      ws.send(JSON.stringify(msg));
+      toggleMuteEl.textContent = muted ? "Desmutear canal 0" : "Mutear canal 0";
+      log(`→ cmd set_mute ch=0 on=${muted} id=${id}`);
+    });
+  </script>
+</body>
+
+</html>
