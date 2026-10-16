@@ -1,0 +1,41 @@
+# Workspace raíz de EVO Linux Control Suite.
+#
+# Regla de dependencias (SAD §1.2):
+#   evo-domain  no depende de nadie
+#   evo-ports   solo de evo-domain
+#   adaptadores de salida (evo-usb, evo-mock, evo-persist, evo-meter-*) dependen de los puertos
+#   evo-core    depende de los puertos, nunca de un adaptador concreto
+#   la composición se hace en los binarios (evo-daemon, apps/desktop)
+[workspace]
+resolver = "3"
+members = ["crates/*", "apps/desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+authors = ["David Sebastián Aguiar"]
+repository = "https://github.com/arsian/evo-linux-control-suite"
+
+[workspace.dependencies]
+# Crates internos
+evo-domain = { path = "crates/evo-domain" }
+evo-ports = { path = "crates/evo-ports" }
+evo-mock = { path = "crates/evo-mock" }
+
+# Terceros
+bitflags = { version = "2.6", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+
+# El perfil de release del binario vive aquí: Cargo ignora [profile.*] en los
+# paquetes que no son la raíz del workspace (avisa y lo descarta).
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
