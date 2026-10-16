@@ -5,7 +5,7 @@
 
 use std::fs;
 
-use evo_domain::{DeviceProfile, DeviceState, ModelId, PersistedState, RepoError};
+use evo_domain::{DeviceProfile, DeviceState, ModelId, PersistedState, RepoError, ServerConfig};
 use evo_persist::FileStateRepo;
 use evo_ports::StateRepo;
 
@@ -168,4 +168,72 @@ fn el_modelo_se_conserva_por_codigo_estable() {
 
     let loaded = repo.load().expect("cargar").expect("documento");
     assert_eq!(loaded.profile.model, ModelId::Evo8);
+}
+
+#[test]
+fn el_bloque_server_sobrevive_al_round_trip() {
+    // El daemon es el único escritor (SAD §8.5). Si el bloque `[server]` no se
+    // reemitiera, cada guardado de estado de dispositivo borraría los ajustes
+    // del servidor remoto.
+    let dir = tempfile::tempdir().expect("directorio temporal");
+    let path = dir.path().join("config.toml");
+    let repo = FileStateRepo::new(&path);
+
+    let server = ServerConfig {
+        enabled: true,
+        interface: Some("wlan0".to_string()),
+        port: 9000,
+    };
+    let doc = sample().with_server(server.clone());
+    repo.save(&doc).expect("guardar");
+
+    let text = fs::read_to_string(&path).expect("leer");
+    assert!(text.contains("[server]"), "esperaba la tabla: {text}");
+
+    let loaded = repo.load().expect("cargar").expect("documento");
+    assert_eq!(loaded.server, server, "los ajustes deben volver intactos");
+}
+
+#[test]
+fn un_documento_sin_server_parsea_con_los_valores_por_defecto() {
+    // Compatibilidad hacia atrás: los `config.toml` escritos antes de que
+    // existiera `[server]` deben seguir cargando (SAD §8.5).
+    let dir = tempfile::tempdir().expect("directorio temporal");
+    let path = dir.path().join("config.toml");
+    let repo = FileStateRepo::new(&path);
+
+    // Se serializa un documento normal y se elimina su tabla `[server]`, que es
+    // exactamente la forma de un archivo de una versión anterior.
+    let full = toml::to_string(&sample()).expect("serializar");
+    let sin_server = strip_table(&full, "server");
+    assert!(
+        !sin_server.contains("[server]"),
+        "el recorte debe quitar la tabla: {sin_server}"
+    );
+    fs::write(&path, sin_server).expect("escribir");
+
+    let loaded = repo.load().expect("cargar").expect("documento");
+    assert_eq!(
+        loaded.server,
+        ServerConfig::default(),
+        "sin `[server]` se asume el valor por defecto"
+    );
+}
+
+/// Elimina del TOML la tabla indicada y sus claves, hasta la siguiente tabla.
+fn strip_table(toml_text: &str, table: &str) -> String {
+    let header = format!("[{table}]");
+    let mut out = String::new();
+    let mut skipping = false;
+    for line in toml_text.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('[') {
+            skipping = trimmed == header;
+        }
+        if !skipping {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
 }

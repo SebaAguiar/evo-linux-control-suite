@@ -1,16 +1,17 @@
 //! Persistencia en disco de EVO Linux Control Suite.
 //!
-//! Implementa el puerto [`evo_ports::StateRepo`] sobre un documento TOML en
-//! `$XDG_CONFIG_HOME/evo-suite/config.toml` (SAD §3.1, §8.5). Es un **adaptador de
-//! salida**: depende de los puertos, nunca al revés.
+//! Implementa el puerto [`evo_ports::StateRepo`] sobre el documento TOML de la
+//! suite en `$XDG_CONFIG_HOME/evo-suite/config.toml` (SAD §3.1, §8.5). Es un
+//! **adaptador de salida**: depende de los puertos, nunca al revés.
 //!
 //! # Qué persiste (y qué no)
 //!
-//! Este crate guarda el **estado de dispositivo**: el último estado comandado, que
-//! es lo que permite reaplicar ganancia y mute tras un *hot-plug*. La configuración
-//! del servidor remoto (`[server]`), la preferencia de tema (`[ui]`) y los presets
-//! del SAD §8.5 llegan con los componentes que los consumen (`evo-remote` y la
-//! biblioteca de presets); no se inventan aquí campos que nadie lee.
+//! Guarda el documento completo tal como lo define [`evo_domain::PersistedState`]:
+//! los ajustes de la aplicación (`[server]`) y el **estado de dispositivo**, que
+//! es el último estado comandado y lo que permite reaplicar ganancia y mute tras
+//! un *hot-plug*. La preferencia de tema (`[ui]`) y los presets del SAD §8.5
+//! llegarán con los componentes que los consumen (la UI y la biblioteca de
+//! presets); no se inventan aquí campos que nadie lee.
 //!
 //! # Garantías
 //!

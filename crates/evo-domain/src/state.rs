@@ -1,6 +1,7 @@
 //! Estado canónico, snapshot versionado y aplicación determinista de deltas.
 
 use crate::channel::ChannelState;
+use crate::config::ServerConfig;
 use crate::error::DomainError;
 use crate::event::DeviceEvent;
 use crate::profile::DeviceProfile;
@@ -214,22 +215,31 @@ pub struct StateSnapshot {
     pub state: DeviceState,
 }
 
-/// Último estado conocido, apto para persistir y reaplicar al reconectar.
+/// Documento persistido de la suite: ajustes + último estado conocido.
 ///
-/// Como el hardware no permite leer su estado (SAD §8.1, §8.6), esta es la
-/// memoria que permite reaplicar ganancia y mute tras un hot-plug. El phantom
-/// **no** se reaplica automáticamente: requiere confirmación (SAD §8.5).
+/// Es el contenido de `config.toml` (SAD §8.5): los ajustes de la aplicación
+/// (`[server]`) y el último estado comandado del dispositivo. Como el hardware no
+/// permite leer su estado (SAD §8.1, §8.6), esta es la memoria que permite
+/// reaplicar ganancia y mute tras un hot-plug. El phantom **no** se reaplica
+/// automáticamente: requiere confirmación (SAD §8.5).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PersistedState {
     /// Versión del documento, para migraciones futuras (`schema_version = 1`).
     pub schema_version: u32,
     /// Marca temporal (epoch ms) de la última escritura.
     ///
-    /// Va **antes** de los campos que son tablas (`profile`, `state`) a
+    /// Va **antes** de los campos que son tablas (`server`, `profile`, `state`) a
     /// propósito: los serializadores de TOML deben emitir todos los valores
     /// escalares antes de la primera tabla, y un escalar declarado después de una
     /// tabla hace fallar la serialización.
     pub saved_at_ms: u64,
+    /// Ajustes del servidor remoto (`[server]`, SAD §8.5).
+    ///
+    /// `#[serde(default)]` mantiene la compatibilidad con documentos escritos
+    /// antes de que existiera este bloque: sin él, un `config.toml` antiguo
+    /// fallaría al parsear y se perdería el estado de dispositivo.
+    #[serde(default)]
+    pub server: ServerConfig,
     pub profile: DeviceProfile,
     pub state: DeviceState,
 }
@@ -242,8 +252,19 @@ impl PersistedState {
         Self {
             schema_version: SCHEMA_VERSION,
             saved_at_ms,
+            server: ServerConfig::default(),
             profile,
             state,
         }
+    }
+
+    /// Fija el bloque `[server]`, conservándolo al reescribir el documento.
+    ///
+    /// El daemon es el **único escritor** (SAD §8.5): al guardar el estado de
+    /// dispositivo debe reemitir los ajustes que cargó, o los borraría del
+    /// archivo en cada guardado.
+    pub fn with_server(mut self, server: ServerConfig) -> Self {
+        self.server = server;
+        self
     }
 }

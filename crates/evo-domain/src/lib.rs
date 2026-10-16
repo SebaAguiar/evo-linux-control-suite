@@ -19,10 +19,13 @@
 //!   dañan equipos (SAD §4.3). Vive en el núcleo, **nunca** en el cliente.
 //! - [`meter`]: [`MeterFrame`], el canal de alta frecuencia, separado del flujo
 //!   de comandos (SAD §1.6, §8.2).
+//! - [`config`]: [`ServerConfig`], los ajustes de la suite que se persisten junto
+//!   al estado de dispositivo en `config.toml` (SAD §8.5).
 //! - [`error`]: errores tipados de dominio.
 
 pub mod channel;
 pub mod command;
+pub mod config;
 pub mod error;
 pub mod event;
 pub mod meter;
@@ -33,6 +36,7 @@ pub mod state;
 
 pub use channel::ChannelState;
 pub use command::{CoalesceKey, DeviceCommand};
+pub use config::ServerConfig;
 pub use error::{CommandRejection, DeviceError, DomainError, MeterError, RepoError, SafetyError};
 pub use event::{ConnectionState, DeviceEvent, StateEvent};
 pub use meter::MeterFrame;
