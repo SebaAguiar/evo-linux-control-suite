@@ -4,8 +4,9 @@
 //! añadir un módulo y una entrada de registro, sin tocar el núcleo (principio
 //! abierto/cerrado).
 
-use crate::EvoDevice;
+use crate::device::{EvoDevice, ReopenFn};
 use evo_domain::{DeviceError, DeviceProfile, ModelId};
+use std::sync::Arc;
 
 /// Identidad USB de un dispositivo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -57,7 +58,11 @@ pub trait DriverFactory: Send + Sync {
 /// Registro de fábricas de drivers disponibles.
 #[derive(Default)]
 pub struct DriverRegistry {
-    factories: Vec<Box<dyn DriverFactory>>,
+    /// `Arc` y no `Box`: el actor de `evo-core` necesita poseer la fábrica para
+    /// reintentar la apertura desde su propio hilo ([`Self::reopen_fn`]), y la
+    /// UI necesita seguir consultándola para describir modelos. Compartirla es
+    /// más barato que clonarla.
+    factories: Vec<Arc<dyn DriverFactory>>,
 }
 
 impl DriverRegistry {
@@ -67,8 +72,21 @@ impl DriverRegistry {
         }
     }
 
-    /// Registra una fábrica. Devuelve `&mut Self` para encadenar.
+    /// Registra una fábrica en caja. Devuelve `&mut Self` para encadenar.
+    ///
+    /// Internamente se guarda como `Arc`: el actor de `evo-core` necesita poseer
+    /// la fábrica para reintentar la apertura ([`Self::reopen_fn`]) y la UI seguir
+    /// consultándola para describir modelos.
     pub fn register(&mut self, factory: Box<dyn DriverFactory>) -> &mut Self {
+        self.factories.push(Arc::from(factory));
+        self
+    }
+
+    /// Registra una fábrica que ya es compartida.
+    ///
+    /// Para el composition root que quiere conservar una copia (por ejemplo, para
+    /// describir modelos antes de arrancar el núcleo).
+    pub fn register_shared(&mut self, factory: Arc<dyn DriverFactory>) -> &mut Self {
         self.factories.push(factory);
         self
     }
@@ -91,6 +109,24 @@ impl DriverRegistry {
             .iter()
             .find(|f| f.model() == model)
             .map(AsRef::as_ref)
+    }
+
+    /// Igual que [`Self::by_model`], pero devolviendo el `Arc` para poder
+    /// poseerlo (por ejemplo, dentro de un [`ReopenFn`]).
+    pub fn by_model_arc(&self, model: ModelId) -> Option<Arc<dyn DriverFactory>> {
+        self.factories
+            .iter()
+            .find(|f| f.model() == model)
+            .map(Arc::clone)
+    }
+
+    /// Construye la clausura de reapertura de un modelo, si hay driver.
+    ///
+    /// Es lo que permite a `evo-core` reintentar tras un *hot-plug* sin conocer
+    /// ningún adaptador concreto (SAD §8.6): solo recibe "algo que sabe abrir".
+    pub fn reopen_fn(&self, model: ModelId) -> Option<ReopenFn> {
+        let factory = self.by_model_arc(model)?;
+        Some(Box::new(move || factory.open()))
     }
 
     /// Modelos con driver registrado.

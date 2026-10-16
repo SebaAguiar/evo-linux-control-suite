@@ -66,3 +66,14 @@ pub trait EvoDevice: Send {
         Ok(())
     }
 }
+
+/// Reapertura de un dispositivo tras una desconexión (SAD §8.6, *hot-plug*).
+///
+/// Es una clausura y no una referencia a un [`crate::DriverFactory`] porque el
+/// actor de `evo-core` vive en su propio hilo y necesita **poseer** la fábrica,
+/// no prestarla. `FnMut` y no `Fn` porque un adaptador real puede querer
+/// reconectar un `rusb::DeviceHandle` cacheado entre intentos.
+///
+/// Devuelve `Err` mientras el dispositivo siga ausente: es el caso normal, no
+/// una anomalía, y quien llama decide cuánto insistir.
+pub type ReopenFn = Box<dyn FnMut() -> Result<Box<dyn EvoDevice>, DeviceError> + Send>;

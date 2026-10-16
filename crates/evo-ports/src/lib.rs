@@ -15,7 +15,7 @@ pub mod registry;
 pub mod sink;
 pub mod testkit;
 
-pub use device::EvoDevice;
+pub use device::{EvoDevice, ReopenFn};
 pub use meter::MeterSource;
 pub use persist::StateRepo;
 pub use registry::{DeviceId, DriverFactory, DriverRegistry};
