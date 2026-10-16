@@ -223,10 +223,15 @@ pub struct StateSnapshot {
 pub struct PersistedState {
     /// Versión del documento, para migraciones futuras (`schema_version = 1`).
     pub schema_version: u32,
+    /// Marca temporal (epoch ms) de la última escritura.
+    ///
+    /// Va **antes** de los campos que son tablas (`profile`, `state`) a
+    /// propósito: los serializadores de TOML deben emitir todos los valores
+    /// escalares antes de la primera tabla, y un escalar declarado después de una
+    /// tabla hace fallar la serialización.
+    pub saved_at_ms: u64,
     pub profile: DeviceProfile,
     pub state: DeviceState,
-    /// Marca temporal (epoch ms) de la última escritura.
-    pub saved_at_ms: u64,
 }
 
 /// Versión actual del esquema de [`PersistedState`].
@@ -236,9 +241,9 @@ impl PersistedState {
     pub fn new(profile: DeviceProfile, state: DeviceState, saved_at_ms: u64) -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
+            saved_at_ms,
             profile,
             state,
-            saved_at_ms,
         }
     }
 }
