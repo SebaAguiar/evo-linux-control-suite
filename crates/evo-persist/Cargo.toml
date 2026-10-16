@@ -1,0 +1,19 @@
+[package]
+name = "evo-persist"
+description = "Persistencia en disco de EVO Linux Control Suite: documento TOML con escritura atómica y copia .bak."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+evo-domain.workspace = true
+evo-ports.workspace = true
+serde.workspace = true
+toml.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
