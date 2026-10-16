@@ -1,0 +1,17 @@
+[package]
+name = "evo-mock"
+description = "Dispositivo simulado y adaptadores en memoria para EVO Linux Control Suite (tests, CI y desarrollo sin hardware)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+evo-domain.workspace = true
+evo-ports.workspace = true
+
+[dev-dependencies]
+evo-domain.workspace = true
+evo-ports.workspace = true
