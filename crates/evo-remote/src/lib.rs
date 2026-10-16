@@ -152,11 +152,8 @@ async fn healthz() -> &'static str {
 }
 
 async fn index() -> Html<&'static str> {
-    Html(INDEX_PLACEHOLDER)
+    Html(INDEX_HTML)
 }
 
-/// Página provisional de `/` hasta que exista el *bundle* de `apps/remote-web`.
-const INDEX_PLACEHOLDER: &str = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">\
-<title>EVO Control</title></head><body><h1>EVO Control</h1>\
-<p>El cliente móvil todavía no está empaquetado. Conéctate por WebSocket en <code>/ws</code> \
-con el contrato de <code>evo-ipc</code>.</p></body></html>";
+/// Cliente web estático para control remoto (`apps/remote-web/public/index.html`).
+const INDEX_HTML: &str = include_str!("../../../apps/remote-web/public/index.html");
