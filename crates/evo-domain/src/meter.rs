@@ -80,6 +80,32 @@ impl MeterFrame {
         out.extend(self.peaks().iter().map(|p| *p as u8));
         out
     }
+
+    /// Decodifica un fotograma binario del contrato IPC; inverso de [`encode`].
+    ///
+    /// Devuelve `None` si la etiqueta no coincide, si `n` excede [`MAX_CHANNELS`]
+    /// o si faltan bytes. Los bytes que sobren tras los `n` picos se **ignoran**
+    /// a propósito: así un campo añadido en el futuro no rompe a los clientes
+    /// viejos (compatibilidad hacia adelante, SAD §4.6).
+    ///
+    /// [`encode`]: MeterFrame::encode
+    pub fn decode(bytes: &[u8]) -> Option<Self> {
+        let (&tag, rest) = bytes.split_first()?;
+        if tag != METER_FRAME_TAG {
+            return None;
+        }
+        let seq = u16::from_le_bytes([*rest.first()?, *rest.get(1)?]);
+        let len = *rest.get(2)?;
+        if len as usize > MAX_CHANNELS {
+            return None;
+        }
+        let peaks = rest.get(3..3 + len as usize)?;
+        let mut frame = Self::silent(seq, len);
+        for (slot, peak) in frame.peaks_dbfs.iter_mut().zip(peaks) {
+            *slot = *peak as i8;
+        }
+        Some(frame)
+    }
 }
 
 /// Etiqueta del primer byte de un fotograma de medidores binario.

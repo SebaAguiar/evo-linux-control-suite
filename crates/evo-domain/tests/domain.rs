@@ -374,6 +374,35 @@ fn los_efectos_de_borde_no_se_coalescen() {
     assert_eq!(DeviceCommand::CancelSmartGain.coalesce_key(), None);
 }
 
+#[test]
+fn el_nombre_serializado_de_cada_comando_coincide_con_op_name() {
+    // El contrato IPC depende de que el `op` del cable sea estable; que coincida
+    // con `op_name()` (usado en logs/auditoría) evita dos nombres para lo mismo.
+    let commands = [
+        DeviceCommand::SetGain { ch: 0, db: 0.0 },
+        DeviceCommand::SetMute { ch: 0, on: true },
+        DeviceCommand::SetPhantom { ch: 0, on: true },
+        DeviceCommand::SetMonitorMix {
+            out: 0,
+            level_db: 0.0,
+            pan: 0.0,
+        },
+        DeviceCommand::SetLoopback { on: true },
+        DeviceCommand::TriggerSmartGain,
+        DeviceCommand::CancelSmartGain,
+        DeviceCommand::SetPad { ch: 0, on: true },
+        DeviceCommand::SetInstrument { ch: 0, on: true },
+    ];
+    for cmd in commands {
+        let value = serde_json::to_value(cmd).expect("serializa");
+        assert_eq!(
+            value["op"].as_str(),
+            Some(cmd.op_name()),
+            "op_name de {cmd:?} no coincide con el nombre serializado"
+        );
+    }
+}
+
 // -------------------------------------------------------------------- meter --
 
 #[test]
@@ -389,6 +418,38 @@ fn un_fotograma_de_medidores_se_codifica_como_el_contrato_binario() {
     assert_eq!(bytes[4] as i8, -3);
     assert_eq!(bytes[5] as i8, -60);
     assert_eq!(bytes[6] as i8, 0);
+}
+
+#[test]
+fn un_fotograma_codificado_se_decodifica_sin_perdida() {
+    let frame = MeterFrame::from_db_fs(0x1234, &[-3.0, -60.0, 0.0]);
+    let decoded = MeterFrame::decode(&frame.encode()).expect("fotograma válido");
+
+    assert_eq!(decoded, frame);
+    assert_eq!(decoded.seq, 0x1234);
+    assert_eq!(decoded.channels(), 3);
+    assert_eq!(decoded.peaks(), frame.peaks());
+}
+
+#[test]
+fn se_rechazan_fotogramas_con_etiqueta_o_longitud_invalidas() {
+    let frame = MeterFrame::silent(1, 4);
+    let bytes = frame.encode();
+
+    // Etiqueta equivocada.
+    let mut bad_tag = bytes.clone();
+    bad_tag[0] = 0x02;
+    assert_eq!(MeterFrame::decode(&bad_tag), None);
+
+    // Truncado (faltan picos).
+    assert_eq!(MeterFrame::decode(&bytes[..bytes.len() - 1]), None);
+
+    // `n` por encima de la capacidad de dimensionamiento.
+    let mut too_many = bytes.clone();
+    too_many[3] = (evo_domain::MAX_CHANNELS + 1) as u8;
+    assert_eq!(MeterFrame::decode(&too_many), None);
+
+    assert_eq!(MeterFrame::decode(&[]), None);
 }
 
 #[test]

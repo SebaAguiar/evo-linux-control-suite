@@ -25,6 +25,7 @@ evo-ports = { path = "crates/evo-ports" }
 evo-core = { path = "crates/evo-core" }
 evo-mock = { path = "crates/evo-mock" }
 evo-persist = { path = "crates/evo-persist" }
+evo-ipc = { path = "crates/evo-ipc" }
 
 # Terceros
 bitflags = { version = "2.6", features = ["serde"] }

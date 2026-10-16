@@ -20,8 +20,15 @@ pub enum DeviceCommand {
     /// Activa o desactiva loop-back.
     SetLoopback { on: bool },
     /// Dispara el asistente de ganancia automática.
+    ///
+    /// El nombre en el cable se fija explícitamente a `trigger_smartgain` (y no
+    /// al `trigger_smart_gain` que produciría `snake_case`) porque así lo fija el
+    /// contrato IPC (SAD §4.6) y así lo devuelve [`DeviceCommand::op_name`]: el
+    /// `rename_all` de la variante parte `SmartGain` en dos palabras.
+    #[serde(rename = "trigger_smartgain")]
     TriggerSmartGain,
     /// Cancela un SmartGain en curso.
+    #[serde(rename = "cancel_smartgain")]
     CancelSmartGain,
     /// Atenuación de entrada (pad), si el modelo la soporta.
     SetPad { ch: u8, on: bool },
