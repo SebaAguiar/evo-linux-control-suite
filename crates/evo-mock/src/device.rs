@@ -1,5 +1,8 @@
 //! Dispositivo simulado.
 
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
 use evo_domain::{
     ConnectionState, DeviceCommand, DeviceError, DeviceEvent, DeviceProfile, DeviceState, ModelId,
 };
@@ -30,11 +33,22 @@ pub struct MockDevice {
     profile: DeviceProfile,
     state: DeviceState,
     connection: ConnectionState,
-    applied: Vec<DeviceCommand>,
-    pending_fault: Option<Fault>,
+    /// Registro compartido y no propio: `evo-core` se queda con el dispositivo
+    /// dentro de su hilo, y sin un handle compartido los tests no podrían ver
+    /// cuántos comandos llegaron de verdad (que es justo lo que mide el
+    /// *coalescing*, SAD §2.2).
+    applied: Arc<Mutex<Vec<DeviceCommand>>>,
+    /// Fallo programado, compartido para poder dispararlo **después** de
+    /// entregar el dispositivo al actor —que es la única forma de simular un
+    /// cable que se suelta a mitad de sesión.
+    pending_fault: Arc<Mutex<Option<Fault>>>,
     /// Si es `false`, se comporta como un dispositivo que no sabe leer su estado
     /// (el caso de v1.0, SAD §8.6).
     can_read_state: bool,
+    /// Latencia simulada por transferencia. El control transfer real del EVO
+    /// cuesta ~1 ms (SAD §2.2); modelarla es lo que hace que el *coalescing*
+    /// tenga algo que coalescer en los tests.
+    apply_delay: Option<Duration>,
 }
 
 impl MockDevice {
@@ -46,9 +60,10 @@ impl MockDevice {
             profile,
             state,
             connection: ConnectionState::Connected,
-            applied: Vec::new(),
-            pending_fault: None,
+            applied: Arc::new(Mutex::new(Vec::new())),
+            pending_fault: Arc::new(Mutex::new(None)),
             can_read_state: false,
+            apply_delay: None,
         }
     }
 
@@ -60,10 +75,32 @@ impl MockDevice {
             profile,
             state,
             connection: ConnectionState::Connected,
-            applied: Vec::new(),
-            pending_fault: None,
+            applied: Arc::new(Mutex::new(Vec::new())),
+            pending_fault: Arc::new(Mutex::new(None)),
             can_read_state: false,
+            apply_delay: None,
         }
+    }
+
+    /// Simula la latencia de un control transfer real (~1 ms, SAD §2.2).
+    pub fn with_apply_delay(mut self, delay: Duration) -> Self {
+        self.apply_delay = Some(delay);
+        self
+    }
+
+    /// Handle compartido al registro de comandos aplicados.
+    ///
+    /// Se toma **antes** de entregar el dispositivo al actor, y sobrevive a que
+    /// este lo posea.
+    pub fn log(&self) -> Arc<Mutex<Vec<DeviceCommand>>> {
+        Arc::clone(&self.applied)
+    }
+
+    /// Añade un registro de comandos compartido (para inspeccionar una
+    /// reconexión, donde el dispositivo lo crea una clausura de reapertura).
+    pub fn with_log(mut self, log: Arc<Mutex<Vec<DeviceCommand>>>) -> Self {
+        self.applied = log;
+        self
     }
 
     /// Habilita `read_state`, como si la Fase 1 hubiese confirmado que el
@@ -75,8 +112,25 @@ impl MockDevice {
 
     /// Programa un fallo para el próximo comando.
     pub fn schedule_fault(&mut self, fault: Fault) -> &mut Self {
-        self.pending_fault = Some(fault);
+        *self.pending_fault.lock().expect("mutex envenenado") = Some(fault);
         self
+    }
+
+    /// Handle compartido al fallo programado.
+    ///
+    /// Permite disparar un fallo **después** de que el actor se haya quedado con
+    /// el dispositivo, que es la única forma de simular un cable que se suelta a
+    /// mitad de sesión (SAD §8.6).
+    pub fn fault_handle(&self) -> Arc<Mutex<Option<Fault>>> {
+        Arc::clone(&self.pending_fault)
+    }
+
+    /// Consume el fallo programado, si lo hay.
+    ///
+    /// El fallo no se asocia a un comando concreto: se dispara en el próximo
+    /// `apply`, sin importar cuándo llegue.
+    fn take_fault(&mut self) -> Option<Fault> {
+        self.pending_fault.lock().expect("mutex envenenado").take()
     }
 
     /// Reconecta un dispositivo caído. Devuelve `false` si ya estaba conectado.
@@ -95,13 +149,13 @@ impl MockDevice {
     ///
     /// Es la herramienta para testear *coalescing*: tras una ráfaga de 200
     /// `SetGain` del mismo canal, aquí deben aparecer muchos menos (SAD §2.2).
-    pub fn applied_commands(&self) -> &[DeviceCommand] {
-        &self.applied
+    pub fn applied_commands(&self) -> Vec<DeviceCommand> {
+        self.applied.lock().expect("mutex envenenado").clone()
     }
 
     /// Vacía el registro de comandos aplicados.
-    pub fn clear_applied(&mut self) {
-        self.applied.clear();
+    pub fn clear_applied(&self) {
+        self.applied.lock().expect("mutex envenenado").clear();
     }
 
     /// Estado interno, para aserciones de test.
@@ -120,7 +174,7 @@ impl EvoDevice for MockDevice {
     }
 
     fn apply(&mut self, cmd: DeviceCommand) -> Result<Vec<DeviceEvent>, DeviceError> {
-        match self.pending_fault.take() {
+        match self.take_fault() {
             Some(Fault::Disconnect) => {
                 self.connection = ConnectionState::Disconnected;
                 return Err(DeviceError::Disconnected);
@@ -137,8 +191,15 @@ impl EvoDevice for MockDevice {
             return Err(DeviceError::Disconnected);
         }
 
+        // Latencia simulada del control transfer, antes de tocar el estado: es
+        // el tiempo que el actor pasa "fuera", y durante el cual se acumulan los
+        // comandos que luego se coalescen (SAD §2.2).
+        if let Some(delay) = self.apply_delay {
+            std::thread::sleep(delay);
+        }
+
         let events = self.apply_validated(cmd)?;
-        self.applied.push(cmd);
+        self.applied.lock().expect("mutex envenenado").push(cmd);
         Ok(events)
     }
 
