@@ -22,13 +22,17 @@ repository = "https://github.com/arsian/evo-linux-control-suite"
 # Crates internos
 evo-domain = { path = "crates/evo-domain" }
 evo-ports = { path = "crates/evo-ports" }
+evo-core = { path = "crates/evo-core" }
 evo-mock = { path = "crates/evo-mock" }
+evo-persist = { path = "crates/evo-persist" }
 
 # Terceros
 bitflags = { version = "2.6", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+tokio = { version = "1", features = ["sync"] }
+toml = "0.8"
 tracing = "0.1"
 
 # El perfil de release del binario vive aquí: Cargo ignora [profile.*] en los
