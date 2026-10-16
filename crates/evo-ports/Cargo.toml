@@ -1,0 +1,17 @@
+[package]
+name = "evo-ports"
+description = "Puertos (traits) de EVO Linux Control Suite. Depende solo de evo-domain."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+# SAD §8.1: los eventos de hardware (perillas físicas) quedan fuera de la ruta
+# v1.0 tras un feature flag. Por defecto no se compilan.
+hw-events = []
+
+[dependencies]
+evo-domain.workspace = true
