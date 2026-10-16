@@ -26,15 +26,24 @@ evo-core = { path = "crates/evo-core" }
 evo-mock = { path = "crates/evo-mock" }
 evo-persist = { path = "crates/evo-persist" }
 evo-ipc = { path = "crates/evo-ipc" }
+evo-remote = { path = "crates/evo-remote" }
 
 # Terceros
+# `axum` con `ws` para el adaptador de red; `futures-util` aporta `split()` sobre
+# el `WebSocket` (Stream + Sink) para separar lectura y escritura (SAD §4.5).
+axum = { version = "0.8", features = ["ws"] }
 bitflags = { version = "2.6", features = ["serde"] }
+futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["sync"] }
 toml = "0.8"
 tracing = "0.1"
+
+# Cliente WebSocket para los tests de integración de `evo-remote`. Es la misma
+# pila `tungstenite` que usa axum, así que el test habla el protocolo real.
+tokio-tungstenite = "0.26"
 
 # El perfil de release del binario vive aquí: Cargo ignora [profile.*] en los
 # paquetes que no son la raíz del workspace (avisa y lo descarta).

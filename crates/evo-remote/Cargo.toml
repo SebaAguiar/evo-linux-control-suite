@@ -1,0 +1,26 @@
+[package]
+name = "evo-remote"
+description = "Adaptador de red: servidor axum (HTTP + WebSocket) que expone el núcleo al cliente móvil (SAD §4.5, §8.4)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+axum.workspace = true
+evo-core.workspace = true
+evo-domain.workspace = true
+evo-ipc.workspace = true
+futures-util.workspace = true
+serde_json.workspace = true
+# `net` para el listener, `rt` para las tareas, `time` para el throttling de
+# medidores y `sync` para los canales internos de cada sesión.
+tokio = { workspace = true, features = ["net", "rt", "time", "sync"] }
+tracing.workspace = true
+
+[dev-dependencies]
+evo-mock.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+tokio-tungstenite.workspace = true
