@@ -19,6 +19,7 @@
 //! - **No hace:** hablar USB real (`evo-usb` está bloqueado, SAD §8.7) ni editar
 //!   `config.toml` desde fuera (el daemon es el único escritor, SAD §8.5).
 
+pub mod alsa;
 pub mod cli;
 mod device;
 pub mod lock;
@@ -173,9 +174,15 @@ impl Daemon {
         // 2. Dispositivo y núcleo.
         let registry = device::registry();
         let (device, reopen) = device::open(&registry, config.model)?;
+        let is_hw = alsa::is_evo4_available("EVO4") && config.model == ModelId::Evo4;
         tracing::info!(
             model = config.model.code(),
-            "dispositivo simulado (evo-usb pendiente de validación con hardware, SAD §8.7)"
+            driver = if is_hw {
+                "hardware ALSA (EVO 4 real)"
+            } else {
+                "simulador evo-mock"
+            },
+            "dispositivo inicializado en el núcleo"
         );
         let core = Arc::new(EvoCore::spawn_with_reopen(device, reopen, config.core));
 

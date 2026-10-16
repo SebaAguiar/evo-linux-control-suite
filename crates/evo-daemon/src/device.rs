@@ -15,14 +15,24 @@ use evo_ports::ReopenFn;
 
 use crate::DaemonError;
 
-/// Registro con las fábricas disponibles en v1.0 (solo la simulada).
-///
-/// Se registra un [`MockDriverFactory`] por modelo para que la resolución por
-/// [`DriverRegistry::by_model`] funcione igual que con drivers reales: la
-/// composición es la definitiva, no un atajo de test.
+/// Registro con las fábricas disponibles: hardware real EVO 4 vía ALSA si está
+/// conectado, o [`MockDriverFactory`] como fallback / para los demás modelos.
 pub fn registry() -> DriverRegistry {
     let mut registry = DriverRegistry::new();
-    for model in ModelId::ALL {
+
+    if crate::alsa::is_evo4_available("EVO4") {
+        tracing::info!(
+            "Dispositivo hardware Audient EVO 4 detectado vía ALSA (VID=2708, PID=0006)"
+        );
+        registry.register(Box::new(crate::alsa::Evo4AlsaDriverFactory::new("EVO4")));
+    } else {
+        tracing::info!(
+            "Audient EVO 4 no detectado físicamente; usando simulador MockDriverFactory"
+        );
+        registry.register(Box::new(MockDriverFactory::new(ModelId::Evo4)));
+    }
+
+    for model in [ModelId::Evo8, ModelId::Evo16] {
         registry.register(Box::new(MockDriverFactory::new(model)));
     }
     registry
