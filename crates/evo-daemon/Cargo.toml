@@ -1,0 +1,42 @@
+[package]
+name = "evo-daemon"
+description = "Raíz de composición sin interfaz gráfica: une núcleo, persistencia y servidor remoto en un único dueño del hardware (SAD §8.3)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+# El daemon se expone como biblioteca para poder arrancarlo entero desde los tests
+# de integración (composición real sobre evo-mock, sin hardware).
+name = "evo_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "evo-daemon"
+path = "src/main.rs"
+
+[dependencies]
+evo-core.workspace = true
+evo-domain.workspace = true
+evo-mock.workspace = true
+evo-persist.workspace = true
+evo-ports.workspace = true
+evo-remote.workspace = true
+if-addrs.workspace = true
+thiserror.workspace = true
+# `net` para el listener, `rt`/`macros` para el binario y las tareas, `time` para
+# el debounce de guardado, `sync` para los canales internos y `signal` para
+# apagar de forma ordenada con SIGINT/SIGTERM.
+tokio = { workspace = true, features = ["net", "rt", "rt-multi-thread", "macros", "time", "sync", "signal"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+evo-ipc.workspace = true
+serde_json.workspace = true
+tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+tokio-tungstenite.workspace = true

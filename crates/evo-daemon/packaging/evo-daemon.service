@@ -1,0 +1,14 @@
+# systemd --user unit for evo-daemon
+# Copy to ~/.config/systemd/user/ and enable: systemctl --user enable --now evo-daemon.service
+[Unit]
+Description=EVO Linux Control Suite daemon (owner of the EVO hardware)
+After=pipewire.service pulseaudio.service
+
+[Service]
+ExecStart=%h/.local/bin/evo-daemon
+Restart=on-failure
+RestartSec=2
+# Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

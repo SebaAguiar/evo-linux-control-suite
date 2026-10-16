@@ -27,6 +27,7 @@ evo-mock = { path = "crates/evo-mock" }
 evo-persist = { path = "crates/evo-persist" }
 evo-ipc = { path = "crates/evo-ipc" }
 evo-remote = { path = "crates/evo-remote" }
+evo-daemon = { path = "crates/evo-daemon" }
 
 # Terceros
 # `axum` con `ws` para el adaptador de red; `futures-util` aporta `split()` sobre
@@ -34,12 +35,18 @@ evo-remote = { path = "crates/evo-remote" }
 axum = { version = "0.8", features = ["ws"] }
 bitflags = { version = "2.6", features = ["serde"] }
 futures-util = "0.3"
+# Enumeración de interfaces de red para resolver la IP de LAN a la que enlazar el
+# servidor remoto (SAD §8.4). Evita `getifaddrs` a mano.
+if-addrs = "0.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["sync"] }
 toml = "0.8"
 tracing = "0.1"
+# Salida de log del binario del daemon. Solo `fmt`: el filtrado se hace con el
+# nivel fijado por los flags `-v`, sin traer el motor de `env-filter`.
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
 
 # Cliente WebSocket para los tests de integración de `evo-remote`. Es la misma
 # pila `tungstenite` que usa axum, así que el test habla el protocolo real.

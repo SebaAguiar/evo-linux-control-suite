@@ -1,0 +1,3 @@
+# udev rule: grant access to Audient EVO interfaces to the active user session
+# (SAD §4.4)
+SUBSYSTEM=="usb", ATTR{idVendor}=="2708", TAG+="uaccess"
