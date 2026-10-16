@@ -1,0 +1,23 @@
+[package]
+name = "evo-core"
+description = "Núcleo de orquestación de EVO Linux Control Suite: bus de comandos, coalescing, actor de dispositivo y almacén de estado."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+evo-domain.workspace = true
+evo-ports.workspace = true
+thiserror.workspace = true
+# `rt` para dar temporizadores al hilo del actor (SAD §2.1: fuera del reactor de
+# la aplicación, pero con un runtime propio de un solo hilo).
+tokio = { workspace = true, features = ["rt", "time", "macros"] }
+tracing.workspace = true
+
+[dev-dependencies]
+evo-mock.workspace = true
+# Los tests necesitan un runtime completo para `#[tokio::test]`.
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
