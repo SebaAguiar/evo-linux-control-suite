@@ -120,6 +120,8 @@ pub struct Evo4HwDevice {
     cached_gain_steps: [u32; 4],
     cached_mutes: [bool; 2],
     cached_phantom: [bool; 2],
+    cached_volume_step: u32,
+    cached_mix_raw: u8,
     loopback: bool,
     smartgain: SmartGainPhase,
     raw_dev: Option<File>,
@@ -149,6 +151,7 @@ impl Evo4HwDevice {
         };
 
         let steps = query_mic_volume(card).unwrap_or([0, 0, 0, 0]);
+        let volume_step = query_playback_volume(card).unwrap_or(254);
 
         let mut dev = Self {
             card: card.to_string(),
@@ -156,6 +159,8 @@ impl Evo4HwDevice {
             cached_gain_steps: steps,
             cached_mutes: [false, false],
             cached_phantom: [false, false],
+            cached_volume_step: volume_step,
+            cached_mix_raw: 64, // 50/50 balance inicial
             loopback: false,
             smartgain: SmartGainPhase::Idle,
             raw_dev,
@@ -181,6 +186,11 @@ impl Evo4HwDevice {
             if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
                 if !data.is_empty() {
                     dev.cached_mutes[1] = data[0] == 1;
+                }
+            }
+            if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3800, 2) {
+                if !data.is_empty() {
+                    dev.cached_mix_raw = data[0].clamp(0, 127);
                 }
             }
         }
@@ -284,6 +294,12 @@ impl EvoDevice for Evo4HwDevice {
                         self.cached_mutes[1] = data[0] == 1;
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(3));
+                if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3800, 2) {
+                    if !data.is_empty() {
+                        self.cached_mix_raw = data[0].clamp(0, 127);
+                    }
+                }
             }
         } else {
             // Modo fallback ALSA básico: actualizamos pasos de ganancia desde ALSA
@@ -301,6 +317,11 @@ impl EvoDevice for Evo4HwDevice {
             }
         }
 
+        // Actualizamos volumen de salida desde ALSA numid=4
+        if let Ok(vol) = query_playback_volume(&self.card) {
+            self.cached_volume_step = vol;
+        }
+
         let mut state = DeviceState::initial(&self.profile);
         state.channels[0].gain_db = step_to_db(self.cached_gain_steps[0]);
         state.channels[1].gain_db = step_to_db(self.cached_gain_steps[1]);
@@ -310,6 +331,13 @@ impl EvoDevice for Evo4HwDevice {
         state.channels[1].phantom = self.cached_phantom[1];
         state.loopback = self.loopback;
         state.smartgain = self.smartgain;
+
+        let vol_db = (self.cached_volume_step as f32) * 0.5 - 127.0;
+        let pan = ((self.cached_mix_raw as f32) / 127.0) * 2.0 - 1.0;
+        for mix in &mut state.mixes {
+            mix.level_db = vol_db;
+            mix.pan = pan;
+        }
 
         Ok(state)
     }
@@ -432,26 +460,24 @@ impl EvoDevice for Evo4HwDevice {
             }
 
             DeviceCommand::SetMonitorMix { out, level_db, pan } => {
+                // 1. Control de volumen general de salida (ALSA numid=4 'EVO4 Playback Volume', 0 a 254 pasos)
+                let step = (((level_db + 127.0) / 0.5).round() as i32).clamp(0, 254) as u32;
+                self.cached_volume_step = step;
+                let _ = write_playback_volume(&self.card, step);
+
+                // 2. Mix entre PC y placa (Extension Unit 56 CS=0 en /dev/evo4):
+                // pan en [-1.0, 1.0] -> 0 = 100% entrada/placa, 127 = 100% PC/DAW, 64 = 50/50 balance
+                let raw_mix = (((pan + 1.0) / 2.0) * 127.0).round().clamp(0.0, 127.0) as u8;
+                self.cached_mix_raw = raw_mix;
+
                 if let Some(file) = &self.raw_dev {
-                    // Monitor mix en EVO 4 vive en EU56 CS=0 (0 = full input, 127 = full playback)
-                    let raw = (((level_db + 127.0) / 127.0 * 127.0).round() as u8).clamp(0, 127);
-                    if let Err(e) = evo_raw_set_cur(file, 0x0000, 0x3800, &[raw, 0]) {
+                    if let Err(e) = evo_raw_set_cur(file, 0x0000, 0x3800, &[raw_mix, 0]) {
                         if is_stale_fd(&e) {
                             self.raw_dev = None;
                         }
                     }
                 }
 
-                let step = (((level_db + 127.0) / 0.5).round() as i32).clamp(0, 254) as u32;
-                let _ = Command::new("amixer")
-                    .args([
-                        "-c",
-                        &self.card,
-                        "cset",
-                        "numid=4",
-                        &format!("{step},{step},0,0"),
-                    ])
-                    .output();
                 Ok(vec![DeviceEvent::MonitorMixChanged { out, level_db, pan }])
             }
 
@@ -519,6 +545,51 @@ fn write_mic_volume(card: &str, steps: &[u32; 4]) -> Result<(), DeviceError> {
     let arg = format!("{},{},{},{}", steps[0], steps[1], steps[2], steps[3]);
     let status = Command::new("amixer")
         .args(["-c", card, "cset", "numid=3", &arg])
+        .status()
+        .map_err(|e| DeviceError::Transfer(e.to_string()))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(DeviceError::Disconnected)
+    }
+}
+
+/// Lee los pasos de volumen de salida general desde ALSA `numid=4` ('EVO4 Playback Volume', 0 a 254).
+fn query_playback_volume(card: &str) -> Result<u32, DeviceError> {
+    let output = Command::new("amixer")
+        .args(["-c", card, "cget", "numid=4"])
+        .output()
+        .map_err(|e| DeviceError::Transfer(e.to_string()))?;
+
+    if !output.status.success() {
+        return Err(DeviceError::Disconnected);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(": values=") {
+            let parts: Vec<u32> = rest
+                .split(',')
+                .filter_map(|s| s.trim().parse::<u32>().ok())
+                .collect();
+            if !parts.is_empty() {
+                return Ok(parts[0]);
+            }
+        }
+    }
+
+    Err(DeviceError::Transfer(
+        "No se pudo parsear numid=4 de ALSA".into(),
+    ))
+}
+
+/// Envía el paso de volumen general al control ALSA `numid=4`.
+fn write_playback_volume(card: &str, step: u32) -> Result<(), DeviceError> {
+    let arg = format!("{step},{step},0,0");
+    let status = Command::new("amixer")
+        .args(["-c", card, "cset", "numid=4", &arg])
         .status()
         .map_err(|e| DeviceError::Transfer(e.to_string()))?;
 
