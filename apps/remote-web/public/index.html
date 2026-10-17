@@ -414,6 +414,13 @@
       box-shadow: 0 0 10px rgba(255, 59, 48, 0.4);
     }
 
+    #btn-master-mute.partial {
+      border-color: #ff9f0a;
+      color: #ff9f0a;
+      background: #2b2211;
+      box-shadow: 0 0 8px rgba(255, 159, 10, 0.3);
+    }
+
     /* Toast Notification Banner */
     .toast-banner {
       position: absolute;
@@ -585,7 +592,7 @@
             </svg>
           </button>
           <!-- Master Mute -->
-          <button class="center-btn" id="btn-master-mute" title="Mute General">
+          <button class="center-btn" id="btn-master-mute" title="Mute General (ambos canales)">
             <span style="font-weight:700; font-size:13px;">M</span>
           </button>
           <!-- Output / Speaker -->
@@ -765,10 +772,13 @@
       document.getElementById("ch-unit-0").classList.toggle("active", activeChannel === 0);
       document.getElementById("ch-unit-1").classList.toggle("active", activeChannel === 1);
 
-      // Update master mute button active state
+      // Update master mute button active state (mutes both channels)
       const masterMuteBtn = document.getElementById("btn-master-mute");
       if (masterMuteBtn) {
-        masterMuteBtn.classList.toggle("active", !!ch.muted);
+        const allMuted = channels.length > 0 && channels.every(c => !!c.muted);
+        const anyMuted = channels.some(c => !!c.muted);
+        masterMuteBtn.classList.toggle("active", allMuted);
+        masterMuteBtn.classList.toggle("partial", anyMuted && !allMuted);
       }
     }
 
@@ -826,12 +836,18 @@
       toggleMute(1);
     });
 
-    // Master Mute Button in Center Cluster
+    // Master Mute Button in Center Cluster (mutes/unmutes both channels)
     const masterMuteBtn = document.getElementById("btn-master-mute");
     if (masterMuteBtn) {
       masterMuteBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        toggleMute(activeChannel);
+        const allMuted = channels.length > 0 && channels.every(c => !!c.muted);
+        const targetState = !allMuted;
+        for (let i = 0; i < channels.length; i++) {
+          if (channels[i].muted !== targetState) {
+            sendCmd({ op: "set_mute", ch: i, on: targetState });
+          }
+        }
       });
     }
 

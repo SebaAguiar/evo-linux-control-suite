@@ -380,6 +380,7 @@ impl EvoDevice for Evo4HwDevice {
                             self.raw_dev = None;
                         }
                     }
+                    std::thread::sleep(std::time::Duration::from_millis(15));
                 } else {
                     // Fallback en modo ALSA básico: simular mute bajando el paso a 0
                     let mut active_steps = self.cached_gain_steps;
