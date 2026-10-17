@@ -1,0 +1,3 @@
+# Reglas udev para interfaces Audient EVO (EVO 4 / EVO 8)
+KERNEL=="evo4", SUBSYSTEM=="misc", GROUP="audio", MODE="0666", TAG+="uaccess"
+KERNEL=="evo8", SUBSYSTEM=="misc", GROUP="audio", MODE="0666", TAG+="uaccess"
