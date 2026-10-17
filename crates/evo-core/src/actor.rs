@@ -79,6 +79,7 @@ pub(crate) struct Actor {
     connection: watch::Sender<ConnectionState>,
     config: CoreConfig,
     origin: Instant,
+    last_flush_at: Duration,
 }
 
 impl Actor {
@@ -104,6 +105,7 @@ impl Actor {
             connection,
             config,
             origin: Instant::now(),
+            last_flush_at: Duration::ZERO,
         }
     }
 
@@ -151,7 +153,7 @@ impl Actor {
             //    trabajo). Sin dispositivo, hasta el próximo intento de
             //    reconexión: **siempre con temporizador**, para que este bucle no
             //    se convierta en un giro al 100 % de CPU.
-            let poll_interval = Duration::from_millis(200);
+            let poll_interval = Duration::from_millis(800);
             let until_due = if connected {
                 self.coalescer.time_until_due(self.now())
             } else {
@@ -233,6 +235,13 @@ impl Actor {
             return;
         }
 
+        // Si se acaba de enviar un comando al hardware (por ejemplo conmutación de relé 48V),
+        // dejamos un periodo de reposo en el endpoint 0 para evitar saturar el microcontrolador
+        // y provocar un reinicio por watchdog de la EVO 4.
+        if self.now().saturating_sub(self.last_flush_at) < Duration::from_millis(600) {
+            return;
+        }
+
         match self.device.read_state() {
             Ok(hw_state) => {
                 if let Some(event) = self.store.replace(hw_state) {
@@ -283,6 +292,8 @@ impl Actor {
             // coalescer a que reconecte.
             return true;
         }
+
+        self.last_flush_at = self.now();
 
         let batch = self.coalescer.flush();
         for (idx, cmd) in batch.iter().enumerate() {

@@ -188,25 +188,9 @@ impl Evo4HwDevice {
         Ok(Box::new(dev))
     }
 
-    /// Asegura que `/dev/evo4` esté abierto y que el descriptor siga siendo válido.
-    /// Si el dispositivo se desconectó o reinició, descarta el descriptor obsoleto y lo reabre.
+    /// Asegura que `/dev/evo4` esté abierto si no lo está.
+    /// Si el dispositivo se había desconectado y reaparece el nodo en devfs, lo reabre.
     fn ensure_raw_dev(&mut self) {
-        if let Some(file) = &self.raw_dev {
-            if let Err(e) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
-                let code = e.raw_os_error().unwrap_or(0);
-                if code == libc::ENODEV
-                    || code == libc::EBADF
-                    || code == libc::EIO
-                    || code == libc::ENXIO
-                {
-                    tracing::warn!(
-                        "El descriptor de /dev/evo4 quedó obsoleto tras reconexión USB ({e}); reabriendo..."
-                    );
-                    self.raw_dev = None;
-                }
-            }
-        }
-
         if self.raw_dev.is_none() && Path::new("/dev/evo4").exists() {
             match OpenOptions::new().read(true).write(true).open("/dev/evo4") {
                 Ok(file) => {
@@ -221,6 +205,11 @@ impl Evo4HwDevice {
             }
         }
     }
+}
+
+fn is_stale_fd(err: &std::io::Error) -> bool {
+    let code = err.raw_os_error().unwrap_or(0);
+    code == libc::ENODEV || code == libc::EBADF || code == libc::EIO || code == libc::ENXIO
 }
 
 impl EvoDevice for Evo4HwDevice {
@@ -242,42 +231,57 @@ impl EvoDevice for Evo4HwDevice {
 
         // Si tenemos /dev/evo4, consultamos el estado físico real de volumen, botones y relés directamente
         if let Some(file) = &self.raw_dev {
+            let mut stale = false;
             for ch in 0..2 {
-                if let Ok(data) = evo_raw_get_cur(file, (2 << 8) | ((ch + 1) as u16), 0x0B00, 2) {
-                    if data.len() >= 2 {
-                        let raw = i16::from_le_bytes([data[0], data[1]]);
-                        let db = (raw as f32) / 256.0;
-                        self.cached_gain_steps[ch] = db_to_step(db);
+                match evo_raw_get_cur(file, (2 << 8) | ((ch + 1) as u16), 0x0B00, 2) {
+                    Ok(data) => {
+                        if data.len() >= 2 {
+                            let raw = i16::from_le_bytes([data[0], data[1]]);
+                            let db = (raw as f32) / 256.0;
+                            self.cached_gain_steps[ch] = db_to_step(db);
+                        }
+                    }
+                    Err(e) if is_stale_fd(&e) => {
+                        stale = true;
+                        break;
+                    }
+                    Err(_) => {}
+                }
+            }
+            if stale {
+                tracing::warn!(
+                    "El descriptor de /dev/evo4 quedó obsoleto tras desconexión USB; cerrando."
+                );
+                self.raw_dev = None;
+            } else {
+                if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
+                    if !data.is_empty() {
+                        self.cached_phantom[0] = data[0] == 1;
                     }
                 }
-            }
-            if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
-                if !data.is_empty() {
-                    self.cached_phantom[0] = data[0] == 1;
+                if let Ok(data) = evo_raw_get_cur(file, 0x0001, 0x3A00, 4) {
+                    if !data.is_empty() {
+                        self.cached_phantom[1] = data[0] == 1;
+                    }
                 }
-            }
-            if let Ok(data) = evo_raw_get_cur(file, 0x0001, 0x3A00, 4) {
-                if !data.is_empty() {
-                    self.cached_phantom[1] = data[0] == 1;
+                if let Ok(data) = evo_raw_get_cur(file, 0x0200, 0x3A00, 4) {
+                    if !data.is_empty() {
+                        self.cached_mutes[0] = data[0] == 1;
+                    }
                 }
-            }
-            if let Ok(data) = evo_raw_get_cur(file, 0x0200, 0x3A00, 4) {
-                if !data.is_empty() {
-                    self.cached_mutes[0] = data[0] == 1;
+                if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
+                    if !data.is_empty() {
+                        self.cached_mutes[1] = data[0] == 1;
+                    }
                 }
-            }
-            if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
-                if !data.is_empty() {
-                    self.cached_mutes[1] = data[0] == 1;
-                }
-            }
-            if let Ok(data) = evo_raw_get_cur(file, 0x0400, 0x3A00, 4) {
-                if !data.is_empty() {
-                    let active = data[0] == 1;
-                    if active && self.smartgain == SmartGainPhase::Idle {
-                        self.smartgain = SmartGainPhase::Listening;
-                    } else if !active && self.smartgain == SmartGainPhase::Listening {
-                        self.smartgain = SmartGainPhase::Idle;
+                if let Ok(data) = evo_raw_get_cur(file, 0x0400, 0x3A00, 4) {
+                    if !data.is_empty() {
+                        let active = data[0] == 1;
+                        if active && self.smartgain == SmartGainPhase::Idle {
+                            self.smartgain = SmartGainPhase::Listening;
+                        } else if !active && self.smartgain == SmartGainPhase::Listening {
+                            self.smartgain = SmartGainPhase::Idle;
+                        }
                     }
                 }
             }
@@ -323,12 +327,16 @@ impl EvoDevice for Evo4HwDevice {
                 // Si tenemos /dev/evo4 escribimos directo al Feature Unit 11 CS=2
                 if let Some(file) = &self.raw_dev {
                     let raw = (db * 256.0).round() as i16;
-                    let _ = evo_raw_set_cur(
+                    if let Err(e) = evo_raw_set_cur(
                         file,
                         (2 << 8) | ((ch + 1) as u16),
                         0x0B00,
                         &raw.to_le_bytes(),
-                    );
+                    ) {
+                        if is_stale_fd(&e) {
+                            self.raw_dev = None;
+                        }
+                    }
                     let _ = write_mic_volume(&self.card, &self.cached_gain_steps);
                 } else {
                     // En modo ALSA básico, si está muteado mantenemos 0 en el control ALSA
@@ -357,12 +365,7 @@ impl EvoDevice for Evo4HwDevice {
                     let val: [u8; 4] = [if on { 1 } else { 0 }, 0, 0, 0];
                     if let Err(e) = evo_raw_set_cur(file, 0x0200 + (ch as u16), 0x3A00, &val) {
                         tracing::error!("Error enviando mute físico a /dev/evo4: {e}");
-                        let code = e.raw_os_error().unwrap_or(0);
-                        if code == libc::ENODEV
-                            || code == libc::EBADF
-                            || code == libc::EIO
-                            || code == libc::ENXIO
-                        {
+                        if is_stale_fd(&e) {
                             self.raw_dev = None;
                         }
                     }
@@ -392,16 +395,14 @@ impl EvoDevice for Evo4HwDevice {
                     let val: [u8; 4] = [if on { 1 } else { 0 }, 0, 0, 0];
                     if let Err(e) = evo_raw_set_cur(file, ch as u16, 0x3A00, &val) {
                         tracing::error!("Error activando 48V físico en /dev/evo4: {e}");
-                        let code = e.raw_os_error().unwrap_or(0);
-                        if code == libc::ENODEV
-                            || code == libc::EBADF
-                            || code == libc::EIO
-                            || code == libc::ENXIO
-                        {
+                        if is_stale_fd(&e) {
                             self.raw_dev = None;
                         }
                         return Err(DeviceError::Transfer(e.to_string()));
                     }
+                    // Breve pausa para estabilizar los contactos mecánicos del relé
+                    // y el convertidor elevador DC-DC antes de reanudar el tráfico USB.
+                    std::thread::sleep(std::time::Duration::from_millis(150));
                     self.cached_phantom[ch as usize] = on;
                     Ok(vec![DeviceEvent::PhantomChanged { ch, on }])
                 } else {
@@ -433,7 +434,11 @@ impl EvoDevice for Evo4HwDevice {
                 if let Some(file) = &self.raw_dev {
                     // Monitor mix en EVO 4 vive en EU56 CS=0 (0 = full input, 127 = full playback)
                     let raw = (((level_db + 127.0) / 127.0 * 127.0).round() as u8).clamp(0, 127);
-                    let _ = evo_raw_set_cur(file, 0x0000, 0x3800, &[raw, 0]);
+                    if let Err(e) = evo_raw_set_cur(file, 0x0000, 0x3800, &[raw, 0]) {
+                        if is_stale_fd(&e) {
+                            self.raw_dev = None;
+                        }
+                    }
                 }
 
                 let step = (((level_db + 127.0) / 0.5).round() as i32).clamp(0, 254) as u32;
@@ -452,7 +457,11 @@ impl EvoDevice for Evo4HwDevice {
             DeviceCommand::TriggerSmartGain => {
                 if let Some(file) = &self.raw_dev {
                     let val: [u8; 4] = [1, 0, 0, 0];
-                    let _ = evo_raw_set_cur(file, 0x0400, 0x3A00, &val);
+                    if let Err(e) = evo_raw_set_cur(file, 0x0400, 0x3A00, &val) {
+                        if is_stale_fd(&e) {
+                            self.raw_dev = None;
+                        }
+                    }
                 }
                 self.smartgain = SmartGainPhase::Listening;
                 Ok(vec![DeviceEvent::SmartGainChanged {
@@ -463,7 +472,11 @@ impl EvoDevice for Evo4HwDevice {
             DeviceCommand::CancelSmartGain => {
                 if let Some(file) = &self.raw_dev {
                     let val: [u8; 4] = [0, 0, 0, 0];
-                    let _ = evo_raw_set_cur(file, 0x0400, 0x3A00, &val);
+                    if let Err(e) = evo_raw_set_cur(file, 0x0400, 0x3A00, &val) {
+                        if is_stale_fd(&e) {
+                            self.raw_dev = None;
+                        }
+                    }
                 }
                 self.smartgain = SmartGainPhase::Idle;
                 Ok(vec![DeviceEvent::SmartGainChanged {
