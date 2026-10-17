@@ -53,6 +53,8 @@ pub(crate) enum CoreRequest {
         locked: bool,
         reply: oneshot::Sender<()>,
     },
+    /// Fuerza una reconciliación inmediata del estado contra el hardware físico ([`EvoDevice::read_state`]).
+    Resync { reply: oneshot::Sender<()> },
 }
 
 /// Resultado de intentar aplicar un comando al hardware.
@@ -113,6 +115,10 @@ impl Actor {
     /// Bucle principal. Devuelve el dispositivo al terminar, para que el
     /// propietario pueda inspeccionarlo o reutilizarlo tras un apagado limpio.
     pub(crate) async fn run(mut self, rx: &mut mpsc::Receiver<CoreRequest>) -> Box<dyn EvoDevice> {
+        if self.connection_value() == ConnectionState::Connected {
+            self.poll_hardware();
+        }
+
         loop {
             // 1) Drena todo lo que haya en cola sin bloquear. Durante una ráfaga
             //    (un slider arrastrándose) el actor está "fuera" aplicando el
@@ -145,6 +151,7 @@ impl Actor {
             //    trabajo). Sin dispositivo, hasta el próximo intento de
             //    reconexión: **siempre con temporizador**, para que este bucle no
             //    se convierta en un giro al 100 % de CPU.
+            let poll_interval = Duration::from_millis(200);
             let until_due = if connected {
                 self.coalescer.time_until_due(self.now())
             } else {
@@ -153,15 +160,20 @@ impl Actor {
 
             match until_due {
                 Some(remaining) if !self.coalescer.is_empty() => {
-                    match tokio::time::timeout(remaining, rx.recv()).await {
+                    let wait = remaining.min(poll_interval);
+                    match tokio::time::timeout(wait, rx.recv()).await {
                         Ok(Some(req)) => self.handle(req),
                         Ok(None) => {
                             self.flush().await;
                             return self.device;
                         }
                         Err(_) => {
-                            if !self.flush().await {
-                                self.begin_reconnect().await;
+                            if self.coalescer.has_due(self.now()) {
+                                if !self.flush().await {
+                                    self.begin_reconnect().await;
+                                }
+                            } else if connected {
+                                self.poll_hardware();
                             }
                         }
                     }
@@ -173,15 +185,27 @@ impl Actor {
                         Err(_) => self.try_reconnect().await,
                     }
                 }
-                _ => match rx.recv().await {
-                    Some(req) => self.handle(req),
-                    None => {
-                        if connected {
-                            self.flush().await;
+                _ => {
+                    let wait = if connected {
+                        poll_interval
+                    } else {
+                        Duration::from_secs(3600)
+                    };
+                    match tokio::time::timeout(wait, rx.recv()).await {
+                        Ok(Some(req)) => self.handle(req),
+                        Ok(None) => {
+                            if connected {
+                                self.flush().await;
+                            }
+                            return self.device;
                         }
-                        return self.device;
+                        Err(_) => {
+                            if connected {
+                                self.poll_hardware();
+                            }
+                        }
                     }
-                },
+                }
             }
         }
     }
@@ -193,6 +217,43 @@ impl Actor {
             CoreRequest::SetPhantomLock { locked, reply } => {
                 self.safety.set_phantom_locked(locked);
                 let _ = reply.send(());
+            }
+            CoreRequest::Resync { reply } => {
+                self.poll_hardware();
+                let _ = reply.send(());
+            }
+        }
+    }
+
+    /// Consulta el estado físico del dispositivo si este lo soporta ([`EvoDevice::read_state`]).
+    /// Si difiere del estado comandado (p. ej. botones presionados físicamente en la placa),
+    /// actualiza el store y emite los deltas correspondientes.
+    fn poll_hardware(&mut self) {
+        if self.connection_value() != ConnectionState::Connected {
+            return;
+        }
+
+        match self.device.read_state() {
+            Ok(hw_state) => {
+                if let Some(event) = self.store.replace(hw_state) {
+                    for op in &event.ops {
+                        if let StateOp::Phantom { ch, on } = op {
+                            self.safety.note_applied(
+                                &DeviceCommand::SetPhantom { ch: *ch, on: *on },
+                                self.now(),
+                            );
+                        }
+                    }
+                    self.sink.emit_state(event);
+                    let _ = self.snapshots.send(self.store.snapshot());
+                }
+            }
+            Err(DeviceError::Unsupported(_)) => {}
+            Err(DeviceError::Disconnected) => {
+                self.set_connection(ConnectionState::Disconnected);
+            }
+            Err(err) => {
+                debug!(%err, "fallo al consultar estado físico del dispositivo");
             }
         }
     }
@@ -335,6 +396,7 @@ impl Actor {
                 self.replay_state();
                 self.set_connection(ConnectionState::Connected);
                 self.flush().await;
+                self.poll_hardware();
             }
             Err(err) => {
                 debug!(%err, "reapertura fallida; se reintentará");

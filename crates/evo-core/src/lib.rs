@@ -217,6 +217,16 @@ impl EvoCore {
         rx.await.map_err(|_| CoreError::Shutdown)
     }
 
+    /// Solicita una reconciliación inmediata del estado contra el hardware físico.
+    pub async fn resync(&self) -> Result<(), CoreError> {
+        let (reply, rx) = oneshot::channel();
+        self.tx
+            .send(CoreRequest::Resync { reply })
+            .await
+            .map_err(|_| CoreError::Shutdown)?;
+        rx.await.map_err(|_| CoreError::Shutdown)
+    }
+
     /// Instantánea actual: perfil + estado + `rev`.
     pub fn snapshot(&self) -> StateSnapshot {
         self.snapshot.borrow().clone()
