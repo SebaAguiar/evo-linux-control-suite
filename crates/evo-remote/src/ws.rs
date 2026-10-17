@@ -110,6 +110,7 @@ async fn handle_text(state: &AppState, tx: &mpsc::Sender<Message>, text: &str) {
     match msg {
         ClientMessage::Cmd { id, cmd } => spawn_command(state.clone(), tx.clone(), id, cmd),
         ClientMessage::Resync => {
+            let _ = state.core.resync().await;
             send(tx, &ServerMessage::snapshot(state.core.snapshot())).await;
         }
         // v1.0 no tiene cuentas ni roles: el handshake se acepta y se ignora
