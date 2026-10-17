@@ -83,19 +83,25 @@ fn un_fallo_de_transferencia_no_mata_el_dispositivo() {
 #[test]
 fn el_mock_rechaza_lo_que_el_modelo_no_soporta() {
     let mut device = MockDevice::new(ModelId::Evo4);
-    // El EVO 4 no declara pad ni mezclador de monitor.
+    // El EVO 4 no declara pad ni entrada de instrumento.
     assert_eq!(
         device.apply(DeviceCommand::SetPad { ch: 0, on: true }),
         Err(DeviceError::Unsupported("pad de entrada"))
     );
     assert!(matches!(
-        device.apply(DeviceCommand::SetMonitorMix {
-            out: 0,
-            level_db: 0.0,
-            pan: 0.0
-        }),
+        device.apply(DeviceCommand::SetInstrument { ch: 0, on: true }),
         Err(DeviceError::Unsupported(_))
     ));
+    // Y sí soporta mezclador de monitor
+    assert!(
+        device
+            .apply(DeviceCommand::SetMonitorMix {
+                out: 0,
+                level_db: -10.0,
+                pan: 0.0,
+            })
+            .is_ok()
+    );
 }
 
 #[test]

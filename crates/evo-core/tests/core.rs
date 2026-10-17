@@ -368,13 +368,9 @@ async fn un_comando_rechazado_nunca_llega_al_hardware() {
     let core = EvoCore::spawn(Box::new(device), CoreConfig::default());
 
     let err = core
-        .submit(DeviceCommand::SetMonitorMix {
-            out: 0,
-            level_db: 0.0,
-            pan: 0.0,
-        })
+        .submit(DeviceCommand::SetPad { ch: 0, on: true })
         .await
-        .expect_err("el EVO 4 no tiene mezclador de monitor");
+        .expect_err("el EVO 4 no tiene pad de entrada");
     assert!(matches!(
         err,
         CoreError::Rejected(CommandRejection::Safety(SafetyError::Unsupported { .. }))

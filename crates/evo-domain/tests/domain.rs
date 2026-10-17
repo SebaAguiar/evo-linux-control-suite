@@ -201,16 +201,12 @@ fn pedir_el_phantom_que_ya_esta_no_consume_cooldown() {
 
 #[test]
 fn una_funcion_no_soportada_por_el_modelo_se_rechaza() {
-    let profile = evo4(); // sin MONITOR_MIX ni pad
+    let profile = evo4(); // sin pad ni instrumento
     let state = DeviceState::initial(&profile);
 
     for cmd in [
-        DeviceCommand::SetMonitorMix {
-            out: 0,
-            level_db: 0.0,
-            pan: 0.0,
-        },
         DeviceCommand::SetPad { ch: 0, on: true },
+        DeviceCommand::SetInstrument { ch: 0, on: true },
     ] {
         let err = policy()
             .validate(cmd, &profile, &state, &ctx(), Duration::ZERO)
@@ -220,6 +216,26 @@ fn una_funcion_no_soportada_por_el_modelo_se_rechaza() {
             evo_domain::CommandRejection::Safety(SafetyError::Unsupported { .. })
         ));
     }
+}
+
+#[test]
+fn el_evo4_soporta_el_mezclador_de_monitor_y_volumen() {
+    let profile = evo4();
+    let state = DeviceState::initial(&profile);
+
+    policy()
+        .validate(
+            DeviceCommand::SetMonitorMix {
+                out: 0,
+                level_db: -12.0,
+                pan: 0.2,
+            },
+            &profile,
+            &state,
+            &ctx(),
+            Duration::ZERO,
+        )
+        .expect("el EVO 4 declara MONITOR_MIX");
 }
 
 #[test]
@@ -496,7 +512,8 @@ fn el_perfil_del_evo4_declara_lo_que_el_producto_necesita() {
     assert!(profile.supports(Capabilities::PHANTOM_PER_CHANNEL));
     assert!(profile.supports(Capabilities::SMARTGAIN));
     assert!(profile.supports(Capabilities::LOOPBACK));
-    assert!(!profile.supports(Capabilities::MONITOR_MIX));
+    assert!(profile.supports(Capabilities::MONITOR_MIX));
+    assert!(!profile.supports(Capabilities::INPUT_PAD));
 }
 
 #[test]

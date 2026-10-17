@@ -36,7 +36,7 @@ impl Default for SafetyLimits {
     fn default() -> Self {
         Self {
             phantom_cooldown: Duration::from_millis(2_000),
-            monitor_level_db: GainRange::new(-60.0, 6.0),
+            monitor_level_db: GainRange::new(-127.0, 6.0),
             pan_range: GainRange::new(-1.0, 1.0),
         }
     }

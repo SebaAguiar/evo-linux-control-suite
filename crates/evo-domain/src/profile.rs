@@ -99,6 +99,7 @@ impl DeviceProfile {
             caps: Capabilities::PHANTOM_PER_CHANNEL
                 | Capabilities::SMARTGAIN
                 | Capabilities::LOOPBACK
+                | Capabilities::MONITOR_MIX
                 | Capabilities::MUTE_PER_CHANNEL,
             gain_range_db: GainRange::PROVISIONAL,
             smartgain_timeout_ms: 15_000,
