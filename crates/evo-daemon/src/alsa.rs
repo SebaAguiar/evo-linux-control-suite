@@ -284,17 +284,6 @@ impl EvoDevice for Evo4HwDevice {
                         self.cached_mutes[1] = data[0] == 1;
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(3));
-                if let Ok(data) = evo_raw_get_cur(file, 0x0400, 0x3A00, 4) {
-                    if !data.is_empty() {
-                        let active = data[0] == 1;
-                        if active && self.smartgain == SmartGainPhase::Idle {
-                            self.smartgain = SmartGainPhase::Listening;
-                        } else if !active && self.smartgain == SmartGainPhase::Listening {
-                            self.smartgain = SmartGainPhase::Idle;
-                        }
-                    }
-                }
             }
         } else {
             // Modo fallback ALSA básico: actualizamos pasos de ganancia desde ALSA
@@ -466,30 +455,13 @@ impl EvoDevice for Evo4HwDevice {
                 Ok(vec![DeviceEvent::MonitorMixChanged { out, level_db, pan }])
             }
 
-            DeviceCommand::TriggerSmartGain => {
-                if let Some(file) = &self.raw_dev {
-                    let val: [u8; 4] = [1, 0, 0, 0];
-                    if let Err(e) = evo_raw_set_cur(file, 0x0400, 0x3A00, &val) {
-                        if is_stale_fd(&e) {
-                            self.raw_dev = None;
-                        }
-                    }
-                }
-                self.smartgain = SmartGainPhase::Listening;
-                Ok(vec![DeviceEvent::SmartGainChanged {
-                    phase: SmartGainPhase::Listening,
-                }])
-            }
-
-            DeviceCommand::CancelSmartGain => {
-                if let Some(file) = &self.raw_dev {
-                    let val: [u8; 4] = [0, 0, 0, 0];
-                    if let Err(e) = evo_raw_set_cur(file, 0x0400, 0x3A00, &val) {
-                        if is_stale_fd(&e) {
-                            self.raw_dev = None;
-                        }
-                    }
-                }
+            DeviceCommand::TriggerSmartGain | DeviceCommand::CancelSmartGain => {
+                // En Audient EVO 4, el proceso de SmartGain se ejecuta por hardware
+                // en el microcontrolador de la interfaz mediante la secuencia física de botones:
+                // 1) Pulsar botón verde SmartGain (los botones 1 y 2 parpadean).
+                // 2) Tocar canal 1 o 2 para seleccionarlo.
+                // 3) Pulsar SmartGain de nuevo para iniciar la calibración.
+                // Al finalizar, la ganancia calibrada en FU11 es leída automáticamente por el daemon.
                 self.smartgain = SmartGainPhase::Idle;
                 Ok(vec![DeviceEvent::SmartGainChanged {
                     phase: SmartGainPhase::Idle,

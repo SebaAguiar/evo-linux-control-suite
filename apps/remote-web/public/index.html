@@ -625,7 +625,7 @@
       </div>
 
       <!-- SmartGain Pill Button -->
-      <div class="smartgain-pill" id="smartgain-btn" title="SmartGain">
+      <div class="smartgain-pill" id="smartgain-btn" title="SmartGain: pulsa el botón verde en la placa, elige el canal y pulsa de nuevo para calibrar">
         <!-- Mic Icon with broadcast rings -->
         <svg viewBox="0 0 24 24">
           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -857,11 +857,7 @@
 
     // SmartGain Pill
     smartgainBtn.addEventListener("click", () => {
-      if (smartgainState !== "idle") {
-        sendCmd({ op: "cancel_smartgain" });
-      } else {
-        sendCmd({ op: "trigger_smartgain" });
-      }
+      showToast("SmartGain: 1) Pulsa el botón verde en la placa. 2) Toca el canal (1 o 2) que titila. 3) Pulsa SmartGain de nuevo para calibrar.", false);
     });
 
     // Step Buttons (+-0.5, +-2 dB)
