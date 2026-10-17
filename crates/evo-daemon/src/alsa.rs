@@ -205,7 +205,18 @@ impl EvoDevice for Evo4HwDevice {
     fn read_state(&mut self) -> Result<DeviceState, DeviceError> {
         // Actualizamos pasos de ganancia desde ALSA
         if let Ok(steps) = query_mic_volume(&self.card) {
-            self.cached_gain_steps = steps;
+            for (ch, &step) in steps.iter().enumerate().take(2) {
+                // En modo fallback ALSA, si el canal está muteado, el valor en ALSA es 0;
+                // no debemos sobreescribir la ganancia real recordada.
+                if self.raw_dev.is_none() && self.cached_mutes[ch] {
+                    continue;
+                }
+                self.cached_gain_steps[ch] = step;
+            }
+            if self.cached_gain_steps.len() > 2 {
+                self.cached_gain_steps[2] = steps[2];
+                self.cached_gain_steps[3] = steps[3];
+            }
         }
 
         // Si tenemos /dev/evo4, consultamos el estado físico de los botones y relés
@@ -263,10 +274,18 @@ impl EvoDevice for Evo4HwDevice {
                         0x0B00,
                         &raw.to_le_bytes(),
                     );
+                    let _ = write_mic_volume(&self.card, &self.cached_gain_steps);
+                } else {
+                    // En modo ALSA básico, si está muteado mantenemos 0 en el control ALSA
+                    let mut active_steps = self.cached_gain_steps;
+                    if self.cached_mutes[0] {
+                        active_steps[0] = 0;
+                    }
+                    if self.cached_mutes[1] {
+                        active_steps[1] = 0;
+                    }
+                    let _ = write_mic_volume(&self.card, &active_steps);
                 }
-
-                // También sincronizamos con ALSA numid=3
-                let _ = write_mic_volume(&self.card, &self.cached_gain_steps);
 
                 Ok(vec![DeviceEvent::GainChanged { ch, db }])
             }
