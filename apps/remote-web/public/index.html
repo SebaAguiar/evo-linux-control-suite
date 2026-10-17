@@ -399,6 +399,50 @@
       background: #2a2d33;
     }
 
+    #btn-master-mute.active {
+      border-color: var(--red-mute);
+      color: var(--red-mute);
+      background: #2b1111;
+      box-shadow: 0 0 10px rgba(255, 59, 48, 0.4);
+    }
+
+    /* Toast Notification Banner */
+    .toast-banner {
+      position: absolute;
+      top: 44px;
+      left: 16px;
+      right: 16px;
+      padding: 7px 12px;
+      background: rgba(22, 23, 26, 0.96);
+      border: 1px solid #3c3e44;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+    }
+
+    .toast-banner.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast-banner.error {
+      border-color: var(--red-mute);
+      color: #ff6b6b;
+    }
+
+    .toast-banner.info {
+      border-color: var(--green-evo);
+      color: var(--green-evo);
+    }
+
     /* Bottom SmartGain Pill */
     .smartgain-pill {
       width: 160px;
@@ -466,6 +510,9 @@
 <body>
 
   <div class="evo-window">
+    <!-- Notification Toast Banner -->
+    <div id="toast-banner" class="toast-banner"></div>
+
     <!-- Window Titlebar -->
     <div class="evo-titlebar">
       <div class="window-dots">
@@ -632,17 +679,42 @@
     }
     buildHaloRing();
 
-    function updateHaloRing(gainDb) {
+    let toastTimer = null;
+    function showToast(text, isError = false) {
+      const banner = document.getElementById("toast-banner");
+      if (!banner) return;
+      banner.textContent = text;
+      banner.className = `toast-banner show ${isError ? "error" : "info"}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        banner.className = "toast-banner";
+      }, 3200);
+    }
+
+    function updateHaloRing(gainDb, isMuted = false) {
       const ratio = Math.max(0, Math.min(1, (gainDb - MIN_DB) / (MAX_DB - MIN_DB)));
       const activeCount = Math.round(ratio * TOTAL_LEDS);
 
       haloDots.forEach((dot, idx) => {
-        if (idx < activeCount) {
-          dot.setAttribute("fill", "var(--led-active)");
-          dot.style.filter = "drop-shadow(0 0 4px var(--led-glow))";
+        if (isMuted) {
+          if (idx < activeCount) {
+            dot.setAttribute("fill", "var(--red-mute)");
+            dot.style.filter = "drop-shadow(0 0 4px rgba(255, 59, 48, 0.5))";
+            dot.style.opacity = "0.7";
+          } else {
+            dot.setAttribute("fill", "var(--led-inactive)");
+            dot.style.filter = "none";
+            dot.style.opacity = "1";
+          }
         } else {
-          dot.setAttribute("fill", "var(--led-inactive)");
-          dot.style.filter = "none";
+          dot.style.opacity = "1";
+          if (idx < activeCount) {
+            dot.setAttribute("fill", "var(--led-active)");
+            dot.style.filter = "drop-shadow(0 0 4px var(--led-glow))";
+          } else {
+            dot.setAttribute("fill", "var(--led-inactive)");
+            dot.style.filter = "none";
+          }
         }
       });
     }
@@ -652,15 +724,24 @@
       if (!ch) return;
 
       // Update Central Knob
-      knobVal.textContent = ch.gain_db.toFixed(1);
-      knobUnit.textContent = `CH ${activeChannel + 1} GAIN`;
-      updateHaloRing(ch.gain_db);
+      if (ch.muted) {
+        knobVal.textContent = "MUTE";
+        knobVal.style.color = "var(--red-mute)";
+        knobUnit.textContent = `CH ${activeChannel + 1} (${ch.gain_db.toFixed(1)} dB)`;
+        updateHaloRing(ch.gain_db, true);
+      } else {
+        knobVal.textContent = ch.gain_db.toFixed(1);
+        knobVal.style.color = "#fff";
+        knobUnit.textContent = `CH ${activeChannel + 1} GAIN`;
+        updateHaloRing(ch.gain_db, false);
+      }
 
       // Update Channel 0 UI
       const bar0 = document.getElementById("mini-bar-0");
       const circ = 125.6;
       const offset0 = circ * (1 - (channels[0].gain_db / MAX_DB));
       bar0.style.strokeDashoffset = offset0;
+      bar0.style.stroke = channels[0].muted ? "var(--red-mute)" : "var(--green-evo)";
       document.getElementById("btn-48v-0").classList.toggle("active", !!channels[0].phantom);
       document.getElementById("btn-mute-0").classList.toggle("active", !!channels[0].muted);
 
@@ -668,12 +749,19 @@
       const bar1 = document.getElementById("mini-bar-1");
       const offset1 = circ * (1 - (channels[1].gain_db / MAX_DB));
       bar1.style.strokeDashoffset = offset1;
+      bar1.style.stroke = channels[1].muted ? "var(--red-mute)" : "var(--green-evo)";
       document.getElementById("btn-48v-1").classList.toggle("active", !!channels[1].phantom);
       document.getElementById("btn-mute-1").classList.toggle("active", !!channels[1].muted);
 
       // Update active channel highlight
       document.getElementById("ch-unit-0").classList.toggle("active", activeChannel === 0);
       document.getElementById("ch-unit-1").classList.toggle("active", activeChannel === 1);
+
+      // Update master mute button active state
+      const masterMuteBtn = document.getElementById("btn-master-mute");
+      if (masterMuteBtn) {
+        masterMuteBtn.classList.toggle("active", !!ch.muted);
+      }
     }
 
     // Channel Selection
@@ -700,10 +788,8 @@
 
     function togglePhantom(chIdx) {
       const current = channels[chIdx].phantom;
-      if (!current) {
-        if (!confirm(`¿Activar +48V Phantom Power en el Canal ${chIdx + 1}?`)) return;
-      }
       sendCmd({ op: "set_phantom", ch: chIdx, on: !current });
+      showToast(`${!current ? "+48V Phantom activado" : "+48V Phantom desactivado"} (CH ${chIdx + 1})`);
     }
 
     // Mute Buttons
@@ -716,6 +802,15 @@
       e.stopPropagation();
       toggleMute(1);
     });
+
+    // Master Mute Button in Center Cluster
+    const masterMuteBtn = document.getElementById("btn-master-mute");
+    if (masterMuteBtn) {
+      masterMuteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleMute(activeChannel);
+      });
+    }
 
     function toggleMute(chIdx) {
       sendCmd({ op: "set_mute", ch: chIdx, on: !channels[chIdx].muted });
@@ -854,6 +949,11 @@
           }
         });
         updateUI();
+      } else if (msg.t === "err") {
+        showToast(msg.msg || "Comando no permitido o en espera de cooldown", true);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ t: "resync" }));
+        }
       }
     }
 
