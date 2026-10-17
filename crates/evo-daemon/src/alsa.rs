@@ -187,6 +187,23 @@ impl Evo4HwDevice {
 
         Ok(Box::new(dev))
     }
+
+    /// Asegura que `/dev/evo4` esté abierto si el módulo evo_raw se cargó en caliente.
+    fn ensure_raw_dev(&mut self) {
+        if self.raw_dev.is_none() && Path::new("/dev/evo4").exists() {
+            match OpenOptions::new().read(true).write(true).open("/dev/evo4") {
+                Ok(file) => {
+                    tracing::info!(
+                        "Dispositivo /dev/evo4 detectado y abierto en caliente: control nativo de 48V y mute físico disponible."
+                    );
+                    self.raw_dev = Some(file);
+                }
+                Err(e) => {
+                    tracing::warn!("Se detectó /dev/evo4 pero no se pudo abrir ({e})");
+                }
+            }
+        }
+    }
 }
 
 impl EvoDevice for Evo4HwDevice {
@@ -203,12 +220,16 @@ impl EvoDevice for Evo4HwDevice {
     }
 
     fn read_state(&mut self) -> Result<DeviceState, DeviceError> {
+        // Intentamos detectar /dev/evo4 si se cargó el módulo recientemente
+        self.ensure_raw_dev();
+        let is_raw = self.raw_dev.is_some();
+
         // Actualizamos pasos de ganancia desde ALSA
         if let Ok(steps) = query_mic_volume(&self.card) {
             for (ch, &step) in steps.iter().enumerate().take(2) {
                 // En modo fallback ALSA, si el canal está muteado, el valor en ALSA es 0;
                 // no debemos sobreescribir la ganancia real recordada.
-                if self.raw_dev.is_none() && self.cached_mutes[ch] {
+                if !is_raw && self.cached_mutes[ch] {
                     continue;
                 }
                 self.cached_gain_steps[ch] = step;
@@ -257,6 +278,7 @@ impl EvoDevice for Evo4HwDevice {
     }
 
     fn apply(&mut self, cmd: DeviceCommand) -> Result<Vec<DeviceEvent>, DeviceError> {
+        self.ensure_raw_dev();
         match cmd {
             DeviceCommand::SetGain { ch, db } => {
                 if ch as usize >= 2 {
@@ -322,7 +344,6 @@ impl EvoDevice for Evo4HwDevice {
                 if ch as usize >= 2 {
                     return Err(DeviceError::Rejected(format!("canal {ch} fuera de rango")));
                 }
-                self.cached_phantom[ch as usize] = on;
 
                 // En el hardware Audient EVO 4, 48V es controlado por EU58 CS=0.
                 // Requiere /dev/evo4 para disparar el relé físico y encender el LED de 48V.
@@ -332,14 +353,17 @@ impl EvoDevice for Evo4HwDevice {
                         tracing::error!("Error activando 48V físico en /dev/evo4: {e}");
                         return Err(DeviceError::Transfer(e.to_string()));
                     }
+                    self.cached_phantom[ch as usize] = on;
+                    Ok(vec![DeviceEvent::PhantomChanged { ch, on }])
                 } else {
                     tracing::warn!(
                         "SetPhantom: /dev/evo4 no disponible. El relé de 48V físico requiere el módulo evo_raw. \
                          Ejecute 'sudo bash driver/evo_raw/install.sh'."
                     );
+                    Err(DeviceError::Unsupported(
+                        "El relé de +48V físico requiere el módulo evo_raw. Ejecute: sudo bash driver/evo_raw/install.sh",
+                    ))
                 }
-
-                Ok(vec![DeviceEvent::PhantomChanged { ch, on }])
             }
 
             DeviceCommand::SetLoopback { on } => {
