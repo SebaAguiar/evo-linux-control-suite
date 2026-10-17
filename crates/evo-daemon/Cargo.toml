@@ -26,6 +26,7 @@ evo-persist.workspace = true
 evo-ports.workspace = true
 evo-remote.workspace = true
 if-addrs.workspace = true
+libc = "0.2"
 thiserror.workspace = true
 # `net` para el listener, `rt`/`macros` para el binario y las tareas, `time` para
 # el debounce de guardado, `sync` para los canales internos y `signal` para
