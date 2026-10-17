@@ -12,20 +12,26 @@ fi
 echo "==> Compilando módulo de kernel ${MODULE_NAME}..."
 make -C "${SCRIPT_DIR}" all
 
+echo "==> Instalando módulo en el sistema (permanente)..."
+make -C "${SCRIPT_DIR}" install
+
+echo "==> Configurando carga automática en el arranque..."
+mkdir -p /etc/modules-load.d
+echo "${MODULE_NAME}" > "/etc/modules-load.d/${MODULE_NAME}.conf"
+
 echo "==> Instalando reglas udev..."
 cp "${SCRIPT_DIR}/99-evo4.rules" /etc/udev/rules.d/
 udevadm control --reload-rules
 udevadm trigger
 
 echo "==> Cargando módulo ${MODULE_NAME}..."
-# Si ya estaba cargado, descargarlo primero
 if lsmod | grep -q "^${MODULE_NAME}"; then
     rmmod "${MODULE_NAME}" || true
 fi
 
-insmod "${SCRIPT_DIR}/${MODULE_NAME}.ko"
+modprobe "${MODULE_NAME}"
 
-echo "==> Módulo cargado exitosamente."
+echo "==> Módulo instalado y cargado permanentemente."
 if [[ -e /dev/evo4 ]]; then
     chmod 666 /dev/evo4 2>/dev/null || true
     echo "==> ¡Dispositivo /dev/evo4 creado y listo!"
