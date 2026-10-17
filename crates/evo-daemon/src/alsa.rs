@@ -209,7 +209,12 @@ impl Evo4HwDevice {
 
 fn is_stale_fd(err: &std::io::Error) -> bool {
     let code = err.raw_os_error().unwrap_or(0);
-    code == libc::ENODEV || code == libc::EBADF || code == libc::EIO || code == libc::ENXIO
+    code == libc::ENODEV
+        || code == libc::EBADF
+        || code == libc::EIO
+        || code == libc::ENXIO
+        || code == libc::EPROTO
+        || code == libc::ESHUTDOWN
 }
 
 impl EvoDevice for Evo4HwDevice {
@@ -233,6 +238,7 @@ impl EvoDevice for Evo4HwDevice {
         if let Some(file) = &self.raw_dev {
             let mut stale = false;
             for ch in 0..2 {
+                std::thread::sleep(std::time::Duration::from_millis(3));
                 match evo_raw_get_cur(file, (2 << 8) | ((ch + 1) as u16), 0x0B00, 2) {
                     Ok(data) => {
                         if data.len() >= 2 {
@@ -254,26 +260,31 @@ impl EvoDevice for Evo4HwDevice {
                 );
                 self.raw_dev = None;
             } else {
+                std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
                     if !data.is_empty() {
                         self.cached_phantom[0] = data[0] == 1;
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0001, 0x3A00, 4) {
                     if !data.is_empty() {
                         self.cached_phantom[1] = data[0] == 1;
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0200, 0x3A00, 4) {
                     if !data.is_empty() {
                         self.cached_mutes[0] = data[0] == 1;
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
                     if !data.is_empty() {
                         self.cached_mutes[1] = data[0] == 1;
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0400, 0x3A00, 4) {
                     if !data.is_empty() {
                         let active = data[0] == 1;

@@ -79,7 +79,7 @@ pub(crate) struct Actor {
     connection: watch::Sender<ConnectionState>,
     config: CoreConfig,
     origin: Instant,
-    last_flush_at: Duration,
+    poll_quiet_until: Duration,
 }
 
 impl Actor {
@@ -105,7 +105,7 @@ impl Actor {
             connection,
             config,
             origin: Instant::now(),
-            last_flush_at: Duration::ZERO,
+            poll_quiet_until: Duration::ZERO,
         }
     }
 
@@ -153,7 +153,7 @@ impl Actor {
             //    trabajo). Sin dispositivo, hasta el próximo intento de
             //    reconexión: **siempre con temporizador**, para que este bucle no
             //    se convierta en un giro al 100 % de CPU.
-            let poll_interval = Duration::from_millis(800);
+            let poll_interval = Duration::from_millis(1500);
             let until_due = if connected {
                 self.coalescer.time_until_due(self.now())
             } else {
@@ -189,7 +189,12 @@ impl Actor {
                 }
                 _ => {
                     let wait = if connected {
-                        poll_interval
+                        let now = self.now();
+                        if now < self.poll_quiet_until {
+                            (self.poll_quiet_until - now).max(Duration::from_millis(100))
+                        } else {
+                            poll_interval
+                        }
                     } else {
                         Duration::from_secs(3600)
                     };
@@ -235,10 +240,10 @@ impl Actor {
             return;
         }
 
-        // Si se acaba de enviar un comando al hardware (por ejemplo conmutación de relé 48V),
-        // dejamos un periodo de reposo en el endpoint 0 para evitar saturar el microcontrolador
-        // y provocar un reinicio por watchdog de la EVO 4.
-        if self.now().saturating_sub(self.last_flush_at) < Duration::from_millis(600) {
+        // Si se acaba de enviar un comando al hardware (por ejemplo conmutación de relé 48V
+        // o rampa del convertidor elevador DC-DC), dejamos un periodo de reposo en el endpoint 0
+        // para evitar saturar el microcontrolador y provocar un reinicio por watchdog de la EVO 4.
+        if self.now() < self.poll_quiet_until {
             return;
         }
 
@@ -293,10 +298,15 @@ impl Actor {
             return true;
         }
 
-        self.last_flush_at = self.now();
-
         let batch = self.coalescer.flush();
         for (idx, cmd) in batch.iter().enumerate() {
+            let quiet_duration = match cmd {
+                DeviceCommand::SetPhantom { .. } => Duration::from_millis(2500),
+                _ => Duration::from_millis(600),
+            };
+            let now = self.now();
+            self.poll_quiet_until = self.poll_quiet_until.max(now + quiet_duration);
+
             match self.apply_one(*cmd) {
                 ApplyOutcome::Applied | ApplyOutcome::Failed => {}
                 ApplyOutcome::Disconnected => {
