@@ -402,9 +402,10 @@
     }
 
     .center-btn.active {
-      border-color: #888;
-      color: #fff;
-      background: #2a2d33;
+      border-color: var(--green-evo);
+      color: var(--green-evo);
+      background: #15291d;
+      box-shadow: 0 0 10px rgba(0, 234, 118, 0.4);
     }
 
     #btn-master-mute.active {
@@ -648,14 +649,20 @@
     // State management
     let ws = null;
     let nextId = 1;
-    let activeChannel = 0; // 0 or 1
+    let activeMode = "ch0"; // "ch0", "ch1", "mix", "out"
     let channels = [
       { gain_db: 32.5, muted: false, phantom: false },
       { gain_db: 0.0, muted: false, phantom: false }
     ];
+    let monitorMix = {
+      level_db: 0.0, // Output volume in dB (-127 dB to 0 dB)
+      pan: 0.0       // Balance between PC and Placa (-1.0 to +1.0, 0 = 50/50 center)
+    };
     let smartgainState = "idle";
     const MIN_DB = 0.0;
     const MAX_DB = 56.0;
+    const MIN_OUT_DB = -60.0;
+    const MAX_OUT_DB = 0.0;
     const TOTAL_LEDS = 24;
 
     // Elements
@@ -706,52 +713,87 @@
       }, 3200);
     }
 
-    function updateHaloRing(gainDb, isMuted = false) {
-      const ratio = Math.max(0, Math.min(1, (gainDb - MIN_DB) / (MAX_DB - MIN_DB)));
-      const activeCount = Math.round(ratio * TOTAL_LEDS);
-
+    function updateHaloRing(ratio, color = "var(--led-active)", glow = "var(--led-glow)") {
+      const activeCount = Math.round(Math.max(0, Math.min(1, ratio)) * TOTAL_LEDS);
       haloDots.forEach((dot, idx) => {
-        if (isMuted) {
-          if (idx < activeCount) {
-            dot.setAttribute("fill", "var(--red-mute)");
-            dot.style.filter = "drop-shadow(0 0 4px rgba(255, 59, 48, 0.5))";
-            dot.style.opacity = "0.7";
-          } else {
-            dot.setAttribute("fill", "var(--led-inactive)");
-            dot.style.filter = "none";
-            dot.style.opacity = "1";
-          }
+        dot.style.opacity = "1";
+        if (idx < activeCount) {
+          dot.setAttribute("fill", color);
+          dot.style.filter = `drop-shadow(0 0 4px ${glow})`;
         } else {
-          dot.style.opacity = "1";
-          if (idx < activeCount) {
-            dot.setAttribute("fill", "var(--led-active)");
-            dot.style.filter = "drop-shadow(0 0 4px var(--led-glow))";
-          } else {
-            dot.setAttribute("fill", "var(--led-inactive)");
-            dot.style.filter = "none";
-          }
+          dot.setAttribute("fill", "var(--led-inactive)");
+          dot.style.filter = "none";
         }
       });
     }
 
-    function updateUI() {
-      const ch = channels[activeChannel];
-      if (!ch) return;
+    function setStepperLabels(labels, steps) {
+      const btns = document.querySelectorAll(".step-btn");
+      btns.forEach((btn, idx) => {
+        if (labels[idx]) btn.textContent = labels[idx];
+        if (steps[idx] !== undefined) btn.dataset.step = steps[idx];
+      });
+    }
 
-      // Update Central Knob
-      if (ch.muted) {
-        knobVal.textContent = "MUTE";
-        knobVal.style.color = "var(--red-mute)";
-        knobUnit.textContent = `CH ${activeChannel + 1} (${ch.gain_db.toFixed(1)} dB)`;
-        updateHaloRing(ch.gain_db, true);
-      } else {
-        knobVal.textContent = ch.gain_db.toFixed(1);
-        knobVal.style.color = "#fff";
-        knobUnit.textContent = `CH ${activeChannel + 1} GAIN`;
-        updateHaloRing(ch.gain_db, false);
+    function updateUI() {
+      // 1. Central knob display based on activeMode
+      if (activeMode === "ch0" || activeMode === "ch1") {
+        const chIdx = activeMode === "ch0" ? 0 : 1;
+        const ch = channels[chIdx];
+        if (ch) {
+          if (ch.muted) {
+            knobVal.textContent = "MUTE";
+            knobVal.style.color = "var(--red-mute)";
+            knobUnit.textContent = `CH ${chIdx + 1} (${ch.gain_db.toFixed(1)} dB)`;
+            updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB), "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
+          } else {
+            knobVal.textContent = ch.gain_db.toFixed(1);
+            knobVal.style.color = "#fff";
+            knobUnit.textContent = `CH ${chIdx + 1} GAIN`;
+            updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB));
+          }
+        }
+        setStepperLabels(["-2 dB", "-0.5", "+0.5", "+2 dB"], [-2.0, -0.5, 0.5, 2.0]);
+      } else if (activeMode === "mix") {
+        const pan = monitorMix.pan;
+        if (Math.abs(pan) < 0.04) {
+          knobVal.textContent = "50 / 50";
+          knobVal.style.color = "var(--green-evo)";
+          knobUnit.textContent = "MIX: PLACA ↔ PC";
+        } else if (pan < -0.04) {
+          const placaPct = Math.round(((-pan) * 0.5 + 0.5) * 100);
+          const pcPct = 100 - placaPct;
+          knobVal.textContent = `${placaPct}% IN`;
+          knobVal.style.color = "#fff";
+          knobUnit.textContent = `MIX (${placaPct}% PLACA / ${pcPct}% PC)`;
+        } else {
+          const pcPct = Math.round(((pan) * 0.5 + 0.5) * 100);
+          const placaPct = 100 - pcPct;
+          knobVal.textContent = `${pcPct}% PC`;
+          knobVal.style.color = "#fff";
+          knobUnit.textContent = `MIX (${placaPct}% PLACA / ${pcPct}% PC)`;
+        }
+        const ratio = (pan + 1.0) / 2.0;
+        updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.6)");
+        setStepperLabels(["-10%", "-5%", "+5%", "+10%"], [-0.20, -0.10, 0.10, 0.20]);
+      } else if (activeMode === "out") {
+        const vol = monitorMix.level_db;
+        if (vol <= -90.0) {
+          knobVal.textContent = "MUTE";
+          knobVal.style.color = "var(--red-mute)";
+          knobUnit.textContent = "VOLUMEN SALIDA";
+          updateHaloRing(0, "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
+        } else {
+          knobVal.textContent = vol.toFixed(1);
+          knobVal.style.color = "#fff";
+          knobUnit.textContent = "dB VOLUMEN SALIDA";
+          const ratio = Math.max(0, Math.min(1, (vol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
+          updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.5)");
+        }
+        setStepperLabels(["-2 dB", "-0.5", "+0.5", "+2 dB"], [-2.0, -0.5, 0.5, 2.0]);
       }
 
-      // Update Channel 0 UI
+      // Update Channel 0 mini UI
       const bar0 = document.getElementById("mini-bar-0");
       const circ = 125.6;
       const offset0 = circ * (1 - (channels[0].gain_db / MAX_DB));
@@ -760,7 +802,7 @@
       document.getElementById("btn-48v-0").classList.toggle("active", !!channels[0].phantom);
       document.getElementById("btn-mute-0").classList.toggle("active", !!channels[0].muted);
 
-      // Update Channel 1 UI
+      // Update Channel 1 mini UI
       const bar1 = document.getElementById("mini-bar-1");
       const offset1 = circ * (1 - (channels[1].gain_db / MAX_DB));
       bar1.style.strokeDashoffset = offset1;
@@ -768,9 +810,11 @@
       document.getElementById("btn-48v-1").classList.toggle("active", !!channels[1].phantom);
       document.getElementById("btn-mute-1").classList.toggle("active", !!channels[1].muted);
 
-      // Update active channel highlight
-      document.getElementById("ch-unit-0").classList.toggle("active", activeChannel === 0);
-      document.getElementById("ch-unit-1").classList.toggle("active", activeChannel === 1);
+      // Update active highlights
+      document.getElementById("ch-unit-0").classList.toggle("active", activeMode === "ch0");
+      document.getElementById("ch-unit-1").classList.toggle("active", activeMode === "ch1");
+      document.getElementById("btn-mode-mix").classList.toggle("active", activeMode === "mix");
+      document.getElementById("btn-mode-out").classList.toggle("active", activeMode === "out");
 
       // Update master mute button active state (mutes both channels)
       const masterMuteBtn = document.getElementById("btn-master-mute");
@@ -782,14 +826,24 @@
       }
     }
 
-    // Channel Selection
+    // Mode Selection Listeners
     document.getElementById("ch-select-0").addEventListener("click", () => {
-      activeChannel = 0;
+      activeMode = "ch0";
       updateUI();
     });
 
     document.getElementById("ch-select-1").addEventListener("click", () => {
-      activeChannel = 1;
+      activeMode = "ch1";
+      updateUI();
+    });
+
+    document.getElementById("btn-mode-mix").addEventListener("click", () => {
+      activeMode = "mix";
+      updateUI();
+    });
+
+    document.getElementById("btn-mode-out").addEventListener("click", () => {
+      activeMode = "out";
       updateUI();
     });
 
@@ -860,17 +914,36 @@
       showToast("SmartGain: 1) Pulsa el botón verde en la placa. 2) Toca el canal (1 o 2) que titila. 3) Pulsa SmartGain de nuevo para calibrar.", false);
     });
 
-    // Step Buttons (+-0.5, +-2 dB)
+    // Step Buttons
     document.querySelectorAll(".step-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const step = parseFloat(btn.dataset.step);
-        let newGain = Math.round((channels[activeChannel].gain_db + step) * 2) / 2;
-        newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
-        if (newGain !== channels[activeChannel].gain_db) {
-          channels[activeChannel].gain_db = newGain;
-          updateUI();
-          sendCmd({ op: "set_gain", ch: activeChannel, db: newGain });
+        if (activeMode === "ch0" || activeMode === "ch1") {
+          const chIdx = activeMode === "ch0" ? 0 : 1;
+          let newGain = Math.round((channels[chIdx].gain_db + step) * 2) / 2;
+          newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+          if (newGain !== channels[chIdx].gain_db) {
+            channels[chIdx].gain_db = newGain;
+            updateUI();
+            sendCmd({ op: "set_gain", ch: chIdx, db: newGain });
+          }
+        } else if (activeMode === "mix") {
+          let newPan = Math.round((monitorMix.pan + step) * 50) / 50;
+          newPan = Math.max(-1.0, Math.min(1.0, newPan));
+          if (newPan !== monitorMix.pan) {
+            monitorMix.pan = newPan;
+            updateUI();
+            sendCmd({ op: "set_monitor_mix", out: 0, level_db: monitorMix.level_db, pan: newPan });
+          }
+        } else if (activeMode === "out") {
+          let newVol = Math.round((monitorMix.level_db + step) * 2) / 2;
+          newVol = Math.max(-127.0, Math.min(0.0, newVol));
+          if (newVol !== monitorMix.level_db) {
+            monitorMix.level_db = newVol;
+            updateUI();
+            sendCmd({ op: "set_monitor_mix", out: 0, level_db: newVol, pan: monitorMix.pan });
+          }
         }
       });
     });
@@ -878,27 +951,49 @@
     // Knob Drag / Rotary Interaction
     let isDragging = false;
     let startY = 0;
-    let startGain = 0;
+    let startVal = 0;
 
     dialTouchZone.addEventListener("pointerdown", (e) => {
       isDragging = true;
       startY = e.clientY;
-      startGain = channels[activeChannel].gain_db;
+      if (activeMode === "ch0") startVal = channels[0].gain_db;
+      else if (activeMode === "ch1") startVal = channels[1].gain_db;
+      else if (activeMode === "mix") startVal = monitorMix.pan;
+      else if (activeMode === "out") startVal = monitorMix.level_db;
       dialTouchZone.setPointerCapture(e.pointerId);
     });
 
     dialTouchZone.addEventListener("pointermove", (e) => {
       if (!isDragging) return;
       const deltaY = startY - e.clientY;
-      // Sensitivity: 120 pixels for full range
-      const deltaDb = (deltaY / 140) * (MAX_DB - MIN_DB);
-      let newGain = Math.round((startGain + deltaDb) * 2) / 2; // 0.5 step
-      newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
-
-      if (newGain !== channels[activeChannel].gain_db) {
-        channels[activeChannel].gain_db = newGain;
-        updateUI();
-        sendCmd({ op: "set_gain", ch: activeChannel, db: newGain });
+      if (activeMode === "ch0" || activeMode === "ch1") {
+        const chIdx = activeMode === "ch0" ? 0 : 1;
+        const deltaDb = (deltaY / 140) * (MAX_DB - MIN_DB);
+        let newGain = Math.round((startVal + deltaDb) * 2) / 2;
+        newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+        if (newGain !== channels[chIdx].gain_db) {
+          channels[chIdx].gain_db = newGain;
+          updateUI();
+          sendCmd({ op: "set_gain", ch: chIdx, db: newGain });
+        }
+      } else if (activeMode === "mix") {
+        const deltaPan = (deltaY / 160) * 2.0;
+        let newPan = Math.round((startVal + deltaPan) * 50) / 50;
+        newPan = Math.max(-1.0, Math.min(1.0, newPan));
+        if (newPan !== monitorMix.pan) {
+          monitorMix.pan = newPan;
+          updateUI();
+          sendCmd({ op: "set_monitor_mix", out: 0, level_db: monitorMix.level_db, pan: newPan });
+        }
+      } else if (activeMode === "out") {
+        const deltaDb = (deltaY / 140) * (MAX_OUT_DB - MIN_OUT_DB);
+        let newVol = Math.round((startVal + deltaDb) * 2) / 2;
+        newVol = Math.max(-127.0, Math.min(0.0, newVol));
+        if (newVol !== monitorMix.level_db) {
+          monitorMix.level_db = newVol;
+          updateUI();
+          sendCmd({ op: "set_monitor_mix", out: 0, level_db: newVol, pan: monitorMix.pan });
+        }
       }
     });
 
@@ -910,15 +1005,50 @@
     // Wheel support on knob
     dialTouchZone.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const step = e.deltaY < 0 ? 0.5 : -0.5;
-      let newGain = Math.round((channels[activeChannel].gain_db + step) * 2) / 2;
-      newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
-      if (newGain !== channels[activeChannel].gain_db) {
-        channels[activeChannel].gain_db = newGain;
-        updateUI();
-        sendCmd({ op: "set_gain", ch: activeChannel, db: newGain });
+      const dir = e.deltaY < 0 ? 1 : -1;
+      if (activeMode === "ch0" || activeMode === "ch1") {
+        const chIdx = activeMode === "ch0" ? 0 : 1;
+        let newGain = Math.round((channels[chIdx].gain_db + dir * 0.5) * 2) / 2;
+        newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+        if (newGain !== channels[chIdx].gain_db) {
+          channels[chIdx].gain_db = newGain;
+          updateUI();
+          sendCmd({ op: "set_gain", ch: chIdx, db: newGain });
+        }
+      } else if (activeMode === "mix") {
+        let newPan = Math.round((monitorMix.pan + dir * 0.04) * 50) / 50;
+        newPan = Math.max(-1.0, Math.min(1.0, newPan));
+        if (newPan !== monitorMix.pan) {
+          monitorMix.pan = newPan;
+          updateUI();
+          sendCmd({ op: "set_monitor_mix", out: 0, level_db: monitorMix.level_db, pan: newPan });
+        }
+      } else if (activeMode === "out") {
+        let newVol = Math.round((monitorMix.level_db + dir * 0.5) * 2) / 2;
+        newVol = Math.max(-127.0, Math.min(0.0, newVol));
+        if (newVol !== monitorMix.level_db) {
+          monitorMix.level_db = newVol;
+          updateUI();
+          sendCmd({ op: "set_monitor_mix", out: 0, level_db: newVol, pan: monitorMix.pan });
+        }
       }
     }, { passive: false });
+
+    // Double click to center Mix or toggle Output Mute
+    mainKnob.addEventListener("dblclick", () => {
+      if (activeMode === "mix") {
+        monitorMix.pan = 0.0;
+        updateUI();
+        sendCmd({ op: "set_monitor_mix", out: 0, level_db: monitorMix.level_db, pan: 0.0 });
+        showToast("Mix centrado: 50% Placa / 50% PC");
+      } else if (activeMode === "out") {
+        const targetDb = monitorMix.level_db <= -90.0 ? 0.0 : -127.0;
+        monitorMix.level_db = targetDb;
+        updateUI();
+        sendCmd({ op: "set_monitor_mix", out: 0, level_db: targetDb, pan: monitorMix.pan });
+        showToast(targetDb <= -90.0 ? "Salida silenciada (Mute)" : "Salida al máximo (0 dB)");
+      }
+    });
 
     // WebSocket IPC
     function connect() {
@@ -965,15 +1095,25 @@
       }
 
       if (msg.t === "snapshot") {
-        if (msg.state && msg.state.channels) {
-          channels[0] = { ...channels[0], ...msg.state.channels[0] };
-          if (msg.state.channels[1]) {
-            channels[1] = { ...channels[1], ...msg.state.channels[1] };
+        if (msg.state) {
+          if (msg.state.channels) {
+            channels[0] = { ...channels[0], ...msg.state.channels[0] };
+            if (msg.state.channels[1]) {
+              channels[1] = { ...channels[1], ...msg.state.channels[1] };
+            }
           }
+          if (msg.state.mixes && msg.state.mixes[0]) {
+            if (typeof msg.state.mixes[0].level_db === "number") {
+              monitorMix.level_db = msg.state.mixes[0].level_db;
+            }
+            if (typeof msg.state.mixes[0].pan === "number") {
+              monitorMix.pan = msg.state.mixes[0].pan;
+            }
+          }
+          smartgainState = msg.state.smartgain || "idle";
+          smartgainBtn.classList.toggle("busy", smartgainState !== "idle");
+          updateUI();
         }
-        smartgainState = msg.state.smartgain || "idle";
-        smartgainBtn.classList.toggle("busy", smartgainState !== "idle");
-        updateUI();
       } else if (msg.t === "patch") {
         msg.ops.forEach(op => {
           if (op.path.startsWith("ch/")) {
@@ -990,6 +1130,11 @@
                   showToast(`${channels[ch].phantom ? "+48V Phantom activado" : "+48V Phantom desactivado"} (CH ${ch + 1})`);
                 }
               }
+            }
+          } else if (op.path === "out/0/mix" || op.path.startsWith("out/")) {
+            if (op.v && typeof op.v === "object") {
+              if (typeof op.v.level_db === "number") monitorMix.level_db = op.v.level_db;
+              if (typeof op.v.pan === "number") monitorMix.pan = op.v.pan;
             }
           } else if (op.path === "smartgain") {
             smartgainState = op.v || "idle";
