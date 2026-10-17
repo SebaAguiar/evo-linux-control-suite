@@ -1012,6 +1012,7 @@ dependencies = [
  "evo-ports",
  "evo-remote",
  "if-addrs",
+ "libc",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
