@@ -10,6 +10,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/kref.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -45,16 +46,39 @@ struct evo_ctrl_xfer {
 #define EVO_CTRL_TRANSFER _IOWR('E', 0, struct evo_ctrl_xfer)
 
 struct evo_device {
+  struct kref kref;
   struct usb_device *udev;
   struct miscdevice misc;
   struct mutex lock;
   char name[8]; /* "evo4" or "evo8" */
 };
 
+static void evo_device_destroy(struct kref *kref) {
+  struct evo_device *dev = container_of(kref, struct evo_device, kref);
+  kfree(dev);
+}
+
 static int evo_open(struct inode *inode, struct file *file) {
   struct evo_device *dev =
       container_of(file->private_data, struct evo_device, misc);
+
+  mutex_lock(&dev->lock);
+  if (!dev->udev) {
+    mutex_unlock(&dev->lock);
+    return -ENODEV;
+  }
+  kref_get(&dev->kref);
+  mutex_unlock(&dev->lock);
+
   file->private_data = dev;
+  return 0;
+}
+
+static int evo_release(struct inode *inode, struct file *file) {
+  struct evo_device *dev = file->private_data;
+
+  if (dev)
+    kref_put(&dev->kref, evo_device_destroy);
   return 0;
 }
 
@@ -62,7 +86,7 @@ static long evo_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
   struct evo_device *dev = file->private_data;
   struct evo_ctrl_xfer xfer;
   unsigned int pipe;
-  void *dmabuf;
+  void *dmabuf = NULL;
   int ret;
 
   if (cmd != EVO_CTRL_TRANSFER)
@@ -75,13 +99,15 @@ static long evo_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
     return -EINVAL;
 
   /* usb_control_msg requires a DMA-able buffer, not stack memory */
-  dmabuf = kmalloc(xfer.wLength, GFP_KERNEL);
-  if (!dmabuf)
-    return -ENOMEM;
+  if (xfer.wLength > 0) {
+    dmabuf = kmalloc(xfer.wLength, GFP_KERNEL);
+    if (!dmabuf)
+      return -ENOMEM;
 
-  /* For OUT transfers, copy data into the DMA buffer */
-  if (!(xfer.bRequestType & USB_DIR_IN))
-    memcpy(dmabuf, xfer.data, xfer.wLength);
+    /* For OUT transfers, copy data into the DMA buffer */
+    if (!(xfer.bRequestType & USB_DIR_IN))
+      memcpy(dmabuf, xfer.data, xfer.wLength);
+  }
 
   mutex_lock(&dev->lock);
 
@@ -109,7 +135,7 @@ static long evo_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
   }
 
   /* For IN transfers, copy the response data back to userspace */
-  if (xfer.bRequestType & USB_DIR_IN) {
+  if (dmabuf && (xfer.bRequestType & USB_DIR_IN)) {
     memcpy(xfer.data, dmabuf, ret);
     xfer.wLength = ret;
     if (copy_to_user((void __user *)arg, &xfer, sizeof(xfer))) {
@@ -125,6 +151,7 @@ static long evo_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
 static const struct file_operations evo_fops = {
     .owner = THIS_MODULE,
     .open = evo_open,
+    .release = evo_release,
     .unlocked_ioctl = evo_ioctl,
 };
 
@@ -160,6 +187,7 @@ static int evo_probe(struct usb_interface *intf,
   if (!dev)
     return -ENOMEM;
 
+  kref_init(&dev->kref);
   mutex_init(&dev->lock);
   strscpy(dev->name, name, sizeof(dev->name));
   dev->udev = usb_get_dev(udev);
@@ -182,18 +210,25 @@ static int evo_probe(struct usb_interface *intf,
 
 static void evo_disconnect(struct usb_interface *intf) {
   struct evo_device *dev = usb_get_intfdata(intf);
+  struct usb_device *udev = NULL;
 
   if (!dev)
     return;
 
-  mutex_lock(&dev->lock);
+  dev_info(&intf->dev, "Audient %s raw control disconnected\n", dev->name);
   misc_deregister(&dev->misc);
-  usb_put_dev(dev->udev);
-  dev->udev = NULL;
+
+  mutex_lock(&dev->lock);
+  if (dev->udev) {
+    udev = dev->udev;
+    dev->udev = NULL;
+  }
   mutex_unlock(&dev->lock);
 
-  dev_info(&intf->dev, "Audient %s raw control disconnected\n", dev->name);
-  kfree(dev);
+  if (udev)
+    usb_put_dev(udev);
+
+  kref_put(&dev->kref, evo_device_destroy);
 }
 
 static const struct usb_device_id evo_id_table[] = {
