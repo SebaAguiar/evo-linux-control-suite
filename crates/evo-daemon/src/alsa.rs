@@ -222,26 +222,18 @@ impl EvoDevice for Evo4HwDevice {
     fn read_state(&mut self) -> Result<DeviceState, DeviceError> {
         // Intentamos detectar /dev/evo4 si se cargó el módulo recientemente
         self.ensure_raw_dev();
-        let is_raw = self.raw_dev.is_some();
 
-        // Actualizamos pasos de ganancia desde ALSA
-        if let Ok(steps) = query_mic_volume(&self.card) {
-            for (ch, &step) in steps.iter().enumerate().take(2) {
-                // En modo fallback ALSA, si el canal está muteado, el valor en ALSA es 0;
-                // no debemos sobreescribir la ganancia real recordada.
-                if !is_raw && self.cached_mutes[ch] {
-                    continue;
-                }
-                self.cached_gain_steps[ch] = step;
-            }
-            if self.cached_gain_steps.len() > 2 {
-                self.cached_gain_steps[2] = steps[2];
-                self.cached_gain_steps[3] = steps[3];
-            }
-        }
-
-        // Si tenemos /dev/evo4, consultamos el estado físico de los botones y relés
+        // Si tenemos /dev/evo4, consultamos el estado físico real de volumen, botones y relés directamente
         if let Some(file) = &self.raw_dev {
+            for ch in 0..2 {
+                if let Ok(data) = evo_raw_get_cur(file, (2 << 8) | ((ch + 1) as u16), 0x0B00, 2) {
+                    if data.len() >= 2 {
+                        let raw = i16::from_le_bytes([data[0], data[1]]);
+                        let db = (raw as f32) / 256.0;
+                        self.cached_gain_steps[ch] = db_to_step(db);
+                    }
+                }
+            }
             if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
                 if !data.is_empty() {
                     self.cached_phantom[0] = data[0] == 1;
@@ -260,6 +252,20 @@ impl EvoDevice for Evo4HwDevice {
             if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
                 if !data.is_empty() {
                     self.cached_mutes[1] = data[0] == 1;
+                }
+            }
+        } else {
+            // Modo fallback ALSA básico: actualizamos pasos de ganancia desde ALSA
+            if let Ok(steps) = query_mic_volume(&self.card) {
+                for (ch, &step) in steps.iter().enumerate().take(2) {
+                    if self.cached_mutes[ch] {
+                        continue;
+                    }
+                    self.cached_gain_steps[ch] = step;
+                }
+                if self.cached_gain_steps.len() > 2 {
+                    self.cached_gain_steps[2] = steps[2];
+                    self.cached_gain_steps[3] = steps[3];
                 }
             }
         }
