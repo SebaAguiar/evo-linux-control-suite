@@ -351,6 +351,14 @@
       box-shadow: 0 0 10px rgba(255, 69, 58, 0.5), inset 0 0 4px rgba(255, 69, 58, 0.4);
     }
 
+    /* 48V Cooldown Lock State */
+    .round-btn.btn-48v.in-cooldown {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+      filter: saturate(0.5);
+    }
+
     /* Mute Active State */
     .round-btn.btn-mute.active {
       background: #2b1111;
@@ -786,10 +794,25 @@
       togglePhantom(1);
     });
 
+    const phantomCooldown = [false, false];
+
     function togglePhantom(chIdx) {
+      if (phantomCooldown[chIdx]) {
+        showToast("Espera 2s de enfriamiento para proteger los micrófonos", true);
+        return;
+      }
+
+      phantomCooldown[chIdx] = true;
+      const btn = document.getElementById(`btn-48v-${chIdx}`);
+      if (btn) btn.classList.add("in-cooldown");
+
+      setTimeout(() => {
+        phantomCooldown[chIdx] = false;
+        if (btn) btn.classList.remove("in-cooldown");
+      }, 2050);
+
       const current = channels[chIdx].phantom;
       sendCmd({ op: "set_phantom", ch: chIdx, on: !current });
-      showToast(`${!current ? "+48V Phantom activado" : "+48V Phantom desactivado"} (CH ${chIdx + 1})`);
     }
 
     // Mute Buttons
@@ -921,7 +944,14 @@
       ws.send(JSON.stringify({ t: "cmd", id: nextId++, ...cmd }));
     }
 
+    let currentRev = 0;
+
     function handleMessage(msg) {
+      if (typeof msg.rev === "number") {
+        if (msg.rev < currentRev) return;
+        currentRev = msg.rev;
+      }
+
       if (msg.t === "snapshot") {
         if (msg.state && msg.state.channels) {
           channels[0] = { ...channels[0], ...msg.state.channels[0] };
@@ -941,7 +971,13 @@
             if (channels[ch]) {
               if (param === "gain") channels[ch].gain_db = Number(op.v);
               else if (param === "mute") channels[ch].muted = !!op.v;
-              else if (param === "phantom") channels[ch].phantom = !!op.v;
+              else if (param === "phantom") {
+                const was = channels[ch].phantom;
+                channels[ch].phantom = !!op.v;
+                if (was !== channels[ch].phantom) {
+                  showToast(`${channels[ch].phantom ? "+48V Phantom activado" : "+48V Phantom desactivado"} (CH ${ch + 1})`);
+                }
+              }
             }
           } else if (op.path === "smartgain") {
             smartgainState = op.v || "idle";
