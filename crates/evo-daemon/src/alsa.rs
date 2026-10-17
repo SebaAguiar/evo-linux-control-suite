@@ -188,13 +188,30 @@ impl Evo4HwDevice {
         Ok(Box::new(dev))
     }
 
-    /// Asegura que `/dev/evo4` esté abierto si el módulo evo_raw se cargó en caliente.
+    /// Asegura que `/dev/evo4` esté abierto y que el descriptor siga siendo válido.
+    /// Si el dispositivo se desconectó o reinició, descarta el descriptor obsoleto y lo reabre.
     fn ensure_raw_dev(&mut self) {
+        if let Some(file) = &self.raw_dev {
+            if let Err(e) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
+                let code = e.raw_os_error().unwrap_or(0);
+                if code == libc::ENODEV
+                    || code == libc::EBADF
+                    || code == libc::EIO
+                    || code == libc::ENXIO
+                {
+                    tracing::warn!(
+                        "El descriptor de /dev/evo4 quedó obsoleto tras reconexión USB ({e}); reabriendo..."
+                    );
+                    self.raw_dev = None;
+                }
+            }
+        }
+
         if self.raw_dev.is_none() && Path::new("/dev/evo4").exists() {
             match OpenOptions::new().read(true).write(true).open("/dev/evo4") {
                 Ok(file) => {
                     tracing::info!(
-                        "Dispositivo /dev/evo4 detectado y abierto en caliente: control nativo de 48V y mute físico disponible."
+                        "Dispositivo /dev/evo4 detectado y abierto: control nativo de 48V y mute físico disponible."
                     );
                     self.raw_dev = Some(file);
                 }
@@ -220,7 +237,7 @@ impl EvoDevice for Evo4HwDevice {
     }
 
     fn read_state(&mut self) -> Result<DeviceState, DeviceError> {
-        // Intentamos detectar /dev/evo4 si se cargó el módulo recientemente
+        // Intentamos detectar /dev/evo4 o reabrirlo si se reconectó el USB
         self.ensure_raw_dev();
 
         // Si tenemos /dev/evo4, consultamos el estado físico real de volumen, botones y relés directamente
@@ -252,6 +269,16 @@ impl EvoDevice for Evo4HwDevice {
             if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
                 if !data.is_empty() {
                     self.cached_mutes[1] = data[0] == 1;
+                }
+            }
+            if let Ok(data) = evo_raw_get_cur(file, 0x0400, 0x3A00, 4) {
+                if !data.is_empty() {
+                    let active = data[0] == 1;
+                    if active && self.smartgain == SmartGainPhase::Idle {
+                        self.smartgain = SmartGainPhase::Listening;
+                    } else if !active && self.smartgain == SmartGainPhase::Listening {
+                        self.smartgain = SmartGainPhase::Idle;
+                    }
                 }
             }
         } else {
@@ -330,6 +357,14 @@ impl EvoDevice for Evo4HwDevice {
                     let val: [u8; 4] = [if on { 1 } else { 0 }, 0, 0, 0];
                     if let Err(e) = evo_raw_set_cur(file, 0x0200 + (ch as u16), 0x3A00, &val) {
                         tracing::error!("Error enviando mute físico a /dev/evo4: {e}");
+                        let code = e.raw_os_error().unwrap_or(0);
+                        if code == libc::ENODEV
+                            || code == libc::EBADF
+                            || code == libc::EIO
+                            || code == libc::ENXIO
+                        {
+                            self.raw_dev = None;
+                        }
                     }
                 } else {
                     // Fallback en modo ALSA básico: simular mute bajando el paso a 0
@@ -357,6 +392,14 @@ impl EvoDevice for Evo4HwDevice {
                     let val: [u8; 4] = [if on { 1 } else { 0 }, 0, 0, 0];
                     if let Err(e) = evo_raw_set_cur(file, ch as u16, 0x3A00, &val) {
                         tracing::error!("Error activando 48V físico en /dev/evo4: {e}");
+                        let code = e.raw_os_error().unwrap_or(0);
+                        if code == libc::ENODEV
+                            || code == libc::EBADF
+                            || code == libc::EIO
+                            || code == libc::ENXIO
+                        {
+                            self.raw_dev = None;
+                        }
                         return Err(DeviceError::Transfer(e.to_string()));
                     }
                     self.cached_phantom[ch as usize] = on;
@@ -407,6 +450,10 @@ impl EvoDevice for Evo4HwDevice {
             }
 
             DeviceCommand::TriggerSmartGain => {
+                if let Some(file) = &self.raw_dev {
+                    let val: [u8; 4] = [1, 0, 0, 0];
+                    let _ = evo_raw_set_cur(file, 0x0400, 0x3A00, &val);
+                }
                 self.smartgain = SmartGainPhase::Listening;
                 Ok(vec![DeviceEvent::SmartGainChanged {
                     phase: SmartGainPhase::Listening,
@@ -414,6 +461,10 @@ impl EvoDevice for Evo4HwDevice {
             }
 
             DeviceCommand::CancelSmartGain => {
+                if let Some(file) = &self.raw_dev {
+                    let val: [u8; 4] = [0, 0, 0, 0];
+                    let _ = evo_raw_set_cur(file, 0x0400, 0x3A00, &val);
+                }
                 self.smartgain = SmartGainPhase::Idle;
                 Ok(vec![DeviceEvent::SmartGainChanged {
                     phase: SmartGainPhase::Idle,
