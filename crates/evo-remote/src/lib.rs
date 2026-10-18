@@ -151,8 +151,12 @@ async fn healthz() -> &'static str {
     "ok"
 }
 
-async fn index() -> Html<&'static str> {
-    Html(INDEX_HTML)
+async fn index() -> Html<std::borrow::Cow<'static, str>> {
+    if let Ok(content) = std::fs::read_to_string("apps/remote-web/public/index.html") {
+        Html(std::borrow::Cow::Owned(content))
+    } else {
+        Html(std::borrow::Cow::Borrowed(INDEX_HTML))
+    }
 }
 
 /// Cliente web estático para control remoto (`apps/remote-web/public/index.html`).
