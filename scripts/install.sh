@@ -29,13 +29,25 @@ fi
 echo -e "${BOLD}=== Instalador de EVO Linux Control Suite ===${RESET}"
 echo
 
-# 1. Compilación del binario release (si no existe o se pide)
+# 1. Compilación de binarios release (si no existen o se pide)
 cd "${REPO_DIR}"
 if [[ ! -f "${REPO_DIR}/target/release/evo-daemon" || "${1:-}" == "--rebuild" ]]; then
   echo -e "${CYAN}==>${RESET} Compilando evo-daemon en modo release..."
   cargo build --release -p evo-daemon
 else
-  echo -e "${GREEN}✓${RESET} Binario release ya compilado (${REPO_DIR}/target/release/evo-daemon)."
+  echo -e "${GREEN}✓${RESET} Binario daemon release ya compilado (${REPO_DIR}/target/release/evo-daemon)."
+fi
+
+if [[ ! -f "${REPO_DIR}/target/release/evo-desktop" || "${1:-}" == "--rebuild" ]]; then
+  if command -v bun >/dev/null 2>&1; then
+    echo -e "${CYAN}==>${RESET} Compilando evo-desktop en modo release con Tauri..."
+    (cd "${REPO_DIR}/apps/desktop" && bun run tauri build --no-bundle --ignore-version-mismatches)
+  elif command -v npm >/dev/null 2>&1; then
+    echo -e "${CYAN}==>${RESET} Compilando evo-desktop en modo release con Tauri (npm)..."
+    (cd "${REPO_DIR}/apps/desktop" && npm run tauri build -- --no-bundle --ignore-version-mismatches)
+  fi
+else
+  echo -e "${GREEN}✓${RESET} Binario desktop release ya compilado (${REPO_DIR}/target/release/evo-desktop)."
 fi
 
 # 2. Instalar binario en ~/.local/bin/evo-daemon
