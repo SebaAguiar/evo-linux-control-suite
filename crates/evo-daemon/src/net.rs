@@ -44,6 +44,55 @@ pub fn lan_ipv4(interface: &str) -> Result<Ipv4Addr, NetError> {
     select_ipv4(&addrs, interface).ok_or_else(|| NetError::NoAddress(interface.to_string()))
 }
 
+/// Resuelve la IPv4 de la interfaz pedida o descubre dinámicamente la interfaz
+/// activa primaria del kernel si la pedida no existe o no tiene IP asignada.
+pub fn lan_ipv4_or_default(interface: Option<&str>) -> Result<(String, Ipv4Addr), NetError> {
+    if let Some(iface) = interface {
+        if let Ok(ip) = lan_ipv4(iface) {
+            return Ok((iface.to_string(), ip));
+        }
+    }
+
+    // Consulta de la ruta por defecto en la tabla de enrutamiento del kernel
+    if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("1.1.1.1:80").is_ok() {
+            if let Ok(std::net::SocketAddr::V4(addr)) = socket.local_addr() {
+                let ip = *addr.ip();
+                if !ip.is_loopback() && !ip.is_unspecified() {
+                    if let Ok(interfaces) = if_addrs::get_if_addrs() {
+                        for iface in interfaces {
+                            if let if_addrs::IfAddr::V4(v4) = iface.addr {
+                                if v4.ip == ip {
+                                    return Ok((iface.name, ip));
+                                }
+                            }
+                        }
+                    }
+                    return Ok(("default".to_string(), ip));
+                }
+            }
+        }
+    }
+
+    // Fallback: primera interfaz física disponible con IPv4 válida
+    if let Ok(interfaces) = if_addrs::get_if_addrs() {
+        for iface in interfaces {
+            let n = &iface.name;
+            if n.starts_with("wl") || n.starts_with("en") || n.starts_with("eth") {
+                if let if_addrs::IfAddr::V4(v4) = iface.addr {
+                    if !v4.ip.is_loopback() && !v4.ip.is_unspecified() && !v4.ip.is_link_local() {
+                        return Ok((n.clone(), v4.ip));
+                    }
+                }
+            }
+        }
+    }
+
+    Err(NetError::NoAddress(
+        interface.unwrap_or("auto").to_string(),
+    ))
+}
+
 /// Selección pura: primera IPv4 utilizable de la interfaz indicada.
 ///
 /// Separada de la enumeración para poder probarla con una lista fabricada.

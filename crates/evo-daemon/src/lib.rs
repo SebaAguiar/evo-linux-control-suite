@@ -287,10 +287,35 @@ async fn serve(
     allow_public_peers: bool,
 ) -> Result<(RemoteHandle, Option<RemoteHandle>), DaemonError> {
     let loopback_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), server.port);
+    let lan_addr = if server.enabled {
+        match net::lan_ipv4_or_default(server.interface.as_deref()) {
+            Ok((iface_name, ip)) => {
+                let addr = SocketAddr::new(IpAddr::V4(ip), server.port);
+                tracing::info!(
+                    interface = %iface_name,
+                    ip = %ip,
+                    port = server.port,
+                    "interfaz y dirección de red resueltas para el servidor remoto"
+                );
+                Some(addr)
+            }
+            Err(err) => {
+                tracing::warn!(
+                    error = %err,
+                    "[server].enabled = true pero no se pudo resolver una IP de LAN utilizable; solo se escucha en loopback"
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let loopback = evo_remote::serve(
         Arc::clone(core),
         RemoteConfig {
             bind: loopback_addr,
+            lan_addr,
             allow_public_peers,
             ..RemoteConfig::default()
         },
@@ -301,34 +326,20 @@ async fn serve(
         source,
     })?;
 
-    let lan = if server.enabled {
-        match server.interface.as_deref() {
-            Some(interface) => {
-                let ip = net::lan_ipv4(interface).map_err(|source| DaemonError::Interface {
-                    interface: interface.to_string(),
-                    source,
-                })?;
-                let addr = SocketAddr::new(IpAddr::V4(ip), server.port);
-                let handle = evo_remote::serve(
-                    Arc::clone(core),
-                    RemoteConfig {
-                        bind: addr,
-                        allow_public_peers,
-                        ..RemoteConfig::default()
-                    },
-                )
-                .await
-                .map_err(|source| DaemonError::Serve { addr, source })?;
-                tracing::info!(%addr, "servidor remoto enlazado en la LAN");
-                Some(handle)
-            }
-            None => {
-                tracing::warn!(
-                    "[server].enabled = true pero sin `interface`; solo se escucha en loopback"
-                );
-                None
-            }
-        }
+    let lan = if let Some(addr) = lan_addr {
+        let handle = evo_remote::serve(
+            Arc::clone(core),
+            RemoteConfig {
+                bind: addr,
+                lan_addr: Some(addr),
+                allow_public_peers,
+                ..RemoteConfig::default()
+            },
+        )
+        .await
+        .map_err(|source| DaemonError::Serve { addr, source })?;
+        tracing::info!(%addr, "servidor remoto enlazado en la LAN");
+        Some(handle)
     } else {
         None
     };
