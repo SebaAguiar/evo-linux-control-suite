@@ -22,6 +22,7 @@ export const MainDial: React.FC<MainDialProps> = ({
   showToast,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dialRef = useRef<HTMLDivElement>(null);
@@ -110,6 +111,7 @@ export const MainDial: React.FC<MainDialProps> = ({
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDraggingRef.current = true;
+    setIsDragging(true);
     startYRef.current = e.clientY;
     if (activeMode === "ch0") startValRef.current = channels[0].gain_db;
     else if (activeMode === "ch1") startValRef.current = channels[1].gain_db;
@@ -152,6 +154,7 @@ export const MainDial: React.FC<MainDialProps> = ({
 
   const handlePointerUp = (e: React.PointerEvent) => {
     isDraggingRef.current = false;
+    setIsDragging(false);
     if (dialRef.current && dialRef.current.hasPointerCapture(e.pointerId)) {
       dialRef.current.releasePointerCapture(e.pointerId);
     }
@@ -187,11 +190,22 @@ export const MainDial: React.FC<MainDialProps> = ({
     if (activeMode === "mix") {
       onMonitorMixChange(monitorMix.level_db, 0.0);
       showToast("Mix centrado: 50% Placa / 50% PC");
-    } else if (activeMode === "out") {
-      const targetDb = monitorMix.level_db <= -90.0 ? 0.0 : -127.0;
-      onMonitorMixChange(targetDb, monitorMix.pan);
-      showToast(targetDb <= -90.0 ? "Salida silenciada (Mute)" : "Salida al máximo (0 dB)");
+      return;
     }
+
+    // Doble clic para escribir valor en dB (canales o salida)
+    setIsEditing(true);
+    if (currentInfo.isMuted) {
+      if (activeMode === "ch0") setInputValue(channels[0].gain_db.toFixed(1));
+      else if (activeMode === "ch1") setInputValue(channels[1].gain_db.toFixed(1));
+      else if (activeMode === "out") setInputValue(monitorMix.level_db.toFixed(1));
+    } else {
+      setInputValue(currentInfo.text);
+    }
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
   };
 
   // Direct numeric input commit
@@ -292,7 +306,7 @@ export const MainDial: React.FC<MainDialProps> = ({
 
   return (
     <div
-      className="main-dial-container"
+      className={`main-dial-container ${isDragging ? "dragging" : ""}`}
       id="dial-touch-zone"
       ref={dialRef}
       onPointerDown={handlePointerDown}
@@ -322,39 +336,44 @@ export const MainDial: React.FC<MainDialProps> = ({
 
       <div className="main-knob">
         <div className="knob-indent">
-          <div className="knob-input-row">
-            <input
-              type="text"
-              inputMode="decimal"
-              className="knob-val-input"
-              ref={inputRef}
-              value={inputValue}
-              autoComplete="off"
-              spellCheck={false}
-              title="Haz clic para escribir los dB exactos (Enter para aplicar)"
-              aria-label="Valor de ganancia o volumen"
-              style={{ color: currentInfo.color }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onFocus={() => {
-                setIsEditing(true);
-                if (currentInfo.isMuted) {
-                  if (activeMode === "ch0") setInputValue(channels[0].gain_db.toFixed(1));
-                  else if (activeMode === "ch1") setInputValue(channels[1].gain_db.toFixed(1));
-                  else if (activeMode === "out") setInputValue(monitorMix.level_db.toFixed(1));
-                }
-                requestAnimationFrame(() => inputRef.current?.select());
-              }}
-              onBlur={commitInput}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            {currentInfo.unit && !isEditing && (
-              <span className="knob-val-unit">{currentInfo.unit}</span>
-            )}
-          </div>
+          {isEditing ? (
+            <div className="knob-input-row editing">
+              <input
+                type="text"
+                inputMode="decimal"
+                className="knob-val-input"
+                ref={inputRef}
+                value={inputValue}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                title="Escribe el valor en dB y pulsa Enter"
+                aria-label="Valor de ganancia o volumen"
+                style={{ color: currentInfo.color }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onBlur={commitInput}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              {currentInfo.unit && (
+                <span className="knob-val-unit">{currentInfo.unit}</span>
+              )}
+            </div>
+          ) : (
+            <div
+              className="knob-val-display"
+              title="Arrastra para ajustar • Doble clic para escribir dB"
+            >
+              <span className="knob-val-num" style={{ color: currentInfo.color }}>
+                {currentInfo.text}
+              </span>
+              {currentInfo.unit && (
+                <span className="knob-val-unit">{currentInfo.unit}</span>
+              )}
+            </div>
+          )}
 
           <div
             className="knob-unit-text"

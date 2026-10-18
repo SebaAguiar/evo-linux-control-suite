@@ -376,6 +376,15 @@ html, body {
   touch-action: none;
 }
 
+.main-dial-container.dragging {
+  cursor: grabbing !important;
+}
+
+.main-dial-container.dragging * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
 .halo-svg {
   position: absolute;
   top: 0;
@@ -423,7 +432,29 @@ html, body {
   pointer-events: none;
 }
 
-.knob-input-row {
+.knob-val-display {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.knob-val-num {
+  font-family: inherit;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.knob-input-row.editing {
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
@@ -437,23 +468,22 @@ html, body {
 
 .knob-val-input {
   font-family: inherit;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  color: #fff;
+  color: #fff !important;
   font-variant-numeric: tabular-nums;
   text-align: center;
   line-height: 1;
-  width: 74px;
+  width: 78px;
   margin: 0;
-  padding: 2px 2px;
+  padding: 2px 4px;
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-  background: transparent;
-  border: 1px dashed transparent;
+  background: #0d0f12;
+  border: 1px solid var(--green-evo);
+  box-shadow: 0 0 14px rgba(0, 234, 118, 0.35), inset 0 1px 3px rgba(0, 0, 0, 0.8);
   border-radius: 6px;
   outline: none;
   cursor: text;
-  transition: all 0.15s ease;
   pointer-events: auto;
   -webkit-appearance: none;
   -moz-appearance: textfield;
@@ -463,19 +493,6 @@ html, body {
 .knob-val-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}
-
-.knob-val-input:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-.knob-val-input:focus {
-  background: #0d0f12;
-  border: 1px solid var(--green-evo);
-  box-shadow: 0 0 14px rgba(0, 234, 118, 0.35), inset 0 1px 3px rgba(0, 0, 0, 0.8);
-  color: #fff !important;
-  width: 84px;
 }
 
 .knob-val-unit {
