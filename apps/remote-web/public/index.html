@@ -148,7 +148,7 @@
       border-radius: 50%;
       background: radial-gradient(circle at 50% 50%, #24262b 0%, #18191c 70%, #101113 100%);
       border: 2px solid #2b2e35;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.12), inset 0 -2px 6px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.12), inset 0 -2px 6px rgba(0, 0, 0, 0.8);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -172,7 +172,7 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 0 8px;
+      padding: 4px 8px 0;
       pointer-events: none;
     }
 
@@ -192,19 +192,16 @@
     }
 
     .knob-unit-text {
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-right: -0.05em;
       text-align: center;
       line-height: 1.25;
       width: 100%;
-      margin-top: 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      max-width: 104px;
+      margin: 5px auto 0;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
       display: block;
     }
@@ -568,7 +565,7 @@
         <div class="main-knob" id="main-knob">
           <div class="knob-indent">
             <div class="knob-val-text" id="knob-val">32.5</div>
-            <div class="knob-unit-text" id="knob-unit">CANAL 1 • GAIN dB</div>
+            <div class="knob-unit-text" id="knob-unit">CANAL 1 • GAIN</div>
           </div>
         </div>
       </div>
@@ -763,12 +760,12 @@
           if (ch.muted) {
             knobVal.textContent = "MUTE";
             knobVal.style.color = "var(--red-mute)";
-            knobUnit.textContent = `CANAL ${chIdx + 1} (${ch.gain_db.toFixed(1)} dB)`;
+            knobUnit.textContent = `CANAL ${chIdx + 1} • MUTE`;
             updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB), "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
           } else {
             knobVal.textContent = ch.gain_db.toFixed(1);
             knobVal.style.color = "#fff";
-            knobUnit.textContent = `CANAL ${chIdx + 1} • GAIN dB`;
+            knobUnit.textContent = `CANAL ${chIdx + 1} • GAIN`;
             updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB));
           }
         }
@@ -800,12 +797,12 @@
         if (vol <= -90.0) {
           knobVal.textContent = "MUTE";
           knobVal.style.color = "var(--red-mute)";
-          knobUnit.textContent = "SALIDA MASTER";
+          knobUnit.textContent = "SALIDA SILENCIADA";
           updateHaloRing(0, "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
         } else {
           knobVal.textContent = vol.toFixed(1);
           knobVal.style.color = "#fff";
-          knobUnit.textContent = "SALIDA MASTER • dB";
+          knobUnit.textContent = "VOLUMEN SALIDA";
           const ratio = Math.max(0, Math.min(1, (vol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
           updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.5)");
         }
@@ -844,6 +841,7 @@
         masterMuteBtn.classList.toggle("partial", anyMuted && !allMuted);
       }
     }
+    updateUI();
 
     // Mode Selection Listeners
     document.getElementById("ch-select-0").addEventListener("click", () => {
