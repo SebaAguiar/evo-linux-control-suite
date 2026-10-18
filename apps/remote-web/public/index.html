@@ -345,19 +345,70 @@
       pointer-events: none;
     }
 
-    .knob-val-text {
+    .knob-input-row {
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      position: relative;
+      pointer-events: auto;
+      gap: 3px;
+      margin: 0;
+      padding: 0;
+      max-width: 100%;
+    }
+
+    .knob-val-input {
+      font-family: inherit;
       font-size: 26px;
       font-weight: 700;
       color: #fff;
       font-variant-numeric: tabular-nums;
       text-align: center;
       line-height: 1;
-      width: 100%;
+      width: 74px;
       margin: 0;
-      padding: 0;
+      padding: 2px 2px;
       letter-spacing: -0.02em;
       text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-      display: block;
+      background: transparent;
+      border: 1px dashed transparent;
+      border-radius: 6px;
+      outline: none;
+      cursor: text;
+      transition: all 0.15s ease;
+      pointer-events: auto;
+      -webkit-appearance: none;
+      -moz-appearance: textfield;
+    }
+
+    .knob-val-input::-webkit-outer-spin-button,
+    .knob-val-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .knob-val-input:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .knob-val-input:focus {
+      background: #0d0f12;
+      border: 1px solid var(--green-evo);
+      box-shadow: 0 0 14px rgba(0, 234, 118, 0.35), inset 0 1px 3px rgba(0, 0, 0, 0.8);
+      color: #fff !important;
+      width: 84px;
+    }
+
+    .knob-val-unit {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      pointer-events: none;
+      user-select: none;
+      margin-left: -1px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
     }
 
     .knob-unit-text {
@@ -369,10 +420,11 @@
       text-align: center;
       line-height: 1.25;
       width: 100%;
-      max-width: 104px;
-      margin: 5px auto 0;
+      max-width: 112px;
+      margin: 4px auto 0;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
       display: block;
+      transition: color 0.15s ease;
     }
 
     /* Steppers Bar (-2, -0.5, +0.5, +2 dB) */
@@ -761,7 +813,20 @@
         <svg class="halo-svg" id="halo-svg" viewBox="0 0 250 250"></svg>
         <div class="main-knob" id="main-knob">
           <div class="knob-indent">
-            <div class="knob-val-text" id="knob-val">32.5</div>
+            <div class="knob-input-row">
+              <input
+                type="text"
+                class="knob-val-input"
+                id="knob-val"
+                value="32.5"
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+                title="Haz clic para escribir el valor exacto en dB (Enter para aplicar)"
+                aria-label="Valor de ganancia o volumen"
+              />
+              <span class="knob-val-unit" id="knob-val-unit">dB</span>
+            </div>
             <div class="knob-unit-text" id="knob-unit">CANAL 1 • GAIN</div>
           </div>
         </div>
@@ -883,9 +948,11 @@
     const haloSvg = document.getElementById("halo-svg");
     const mainKnob = document.getElementById("main-knob");
     const knobVal = document.getElementById("knob-val");
+    const knobValUnit = document.getElementById("knob-val-unit");
     const knobUnit = document.getElementById("knob-unit");
     const dialTouchZone = document.getElementById("dial-touch-zone");
     const smartgainBtn = document.getElementById("smartgain-btn");
+    let isEditingKnob = false;
 
     // Initialize Halo Ring SVG Dots
     const haloDots = [];
@@ -948,6 +1015,23 @@
       });
     }
 
+    function setKnobDisplay(text, color, unitDesc, unitSuffix) {
+      if (!isEditingKnob && document.activeElement !== knobVal) {
+        knobVal.value = text;
+        knobVal.style.color = color || "#fff";
+      }
+      if (unitDesc !== undefined && !isEditingKnob) {
+        knobUnit.textContent = unitDesc;
+        knobUnit.style.color = "var(--text-muted)";
+      }
+      if (knobValUnit) {
+        if (unitSuffix !== undefined) {
+          knobValUnit.textContent = unitSuffix;
+          knobValUnit.style.display = unitSuffix ? "inline" : "none";
+        }
+      }
+    }
+
     function updateUI() {
       // 1. Central knob display based on activeMode
       if (activeMode === "ch0" || activeMode === "ch1") {
@@ -955,14 +1039,10 @@
         const ch = channels[chIdx];
         if (ch) {
           if (ch.muted) {
-            knobVal.textContent = "MUTE";
-            knobVal.style.color = "var(--red-mute)";
-            knobUnit.textContent = `CANAL ${chIdx + 1} • MUTE`;
+            setKnobDisplay("MUTE", "var(--red-mute)", `CANAL ${chIdx + 1} • MUTE`, "");
             updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB), "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
           } else {
-            knobVal.textContent = ch.gain_db.toFixed(1);
-            knobVal.style.color = "#fff";
-            knobUnit.textContent = `CANAL ${chIdx + 1} • GAIN`;
+            setKnobDisplay(ch.gain_db.toFixed(1), "#fff", `CANAL ${chIdx + 1} • GAIN`, "dB");
             updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB));
           }
         }
@@ -970,21 +1050,15 @@
       } else if (activeMode === "mix") {
         const pan = monitorMix.pan;
         if (Math.abs(pan) < 0.04) {
-          knobVal.textContent = "50 / 50";
-          knobVal.style.color = "var(--green-evo)";
-          knobUnit.textContent = "PLACA ↔ PC";
+          setKnobDisplay("50/50", "var(--green-evo)", "PLACA ↔ PC", "");
         } else if (pan < -0.04) {
           const placaPct = Math.round(((-pan) * 0.5 + 0.5) * 100);
           const pcPct = 100 - placaPct;
-          knobVal.textContent = `${placaPct}% IN`;
-          knobVal.style.color = "#fff";
-          knobUnit.textContent = `PLACA ${placaPct}% • PC ${pcPct}%`;
+          setKnobDisplay(`${placaPct}%`, "#fff", `PLACA ${placaPct}% • PC ${pcPct}%`, "IN");
         } else {
           const pcPct = Math.round(((pan) * 0.5 + 0.5) * 100);
           const placaPct = 100 - pcPct;
-          knobVal.textContent = `${pcPct}% PC`;
-          knobVal.style.color = "#fff";
-          knobUnit.textContent = `PLACA ${placaPct}% • PC ${pcPct}%`;
+          setKnobDisplay(`${pcPct}%`, "#fff", `PLACA ${placaPct}% • PC ${pcPct}%`, "PC");
         }
         const ratio = (pan + 1.0) / 2.0;
         updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.6)");
@@ -992,14 +1066,10 @@
       } else if (activeMode === "out") {
         const vol = monitorMix.level_db;
         if (vol <= -90.0) {
-          knobVal.textContent = "MUTE";
-          knobVal.style.color = "var(--red-mute)";
-          knobUnit.textContent = "SALIDA SILENCIADA";
+          setKnobDisplay("MUTE", "var(--red-mute)", "SALIDA SILENCIADA", "");
           updateHaloRing(0, "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
         } else {
-          knobVal.textContent = vol.toFixed(1);
-          knobVal.style.color = "#fff";
-          knobUnit.textContent = "VOLUMEN SALIDA";
+          setKnobDisplay(vol.toFixed(1), "#fff", "VOLUMEN SALIDA", "dB");
           const ratio = Math.max(0, Math.min(1, (vol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
           updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.5)");
         }
@@ -1261,6 +1331,132 @@
         updateUI();
         sendCmd({ op: "set_monitor_mix", out: 0, level_db: targetDb, pan: monitorMix.pan });
         showToast(targetDb <= -90.0 ? "Salida silenciada (Mute)" : "Salida al máximo (0 dB)");
+      }
+    });
+
+    // Editable Knob Input (<input id="knob-val">)
+    function commitKnobInput() {
+      if (!isEditingKnob) return;
+      isEditingKnob = false;
+
+      const raw = knobVal.value.trim().replace(/,/g, ".").replace(/db/gi, "").trim();
+
+      if (activeMode === "ch0" || activeMode === "ch1") {
+        const chIdx = activeMode === "ch0" ? 0 : 1;
+        let num = parseFloat(raw);
+        if (isNaN(num)) {
+          showToast("Ingresa un número válido en dB (ej: 34 o 38.5)", true);
+        } else {
+          const clamped = Math.max(MIN_DB, Math.min(MAX_DB, num));
+          const rounded = Math.round(clamped * 2) / 2;
+          channels[chIdx].gain_db = rounded;
+          sendCmd({ op: "set_gain", ch: chIdx, db: rounded });
+          if (num > MAX_DB) {
+            showToast(`Canal ${chIdx + 1}: Ganancia limitada a ${rounded.toFixed(1)} dB (máx. hardware)`, false);
+          } else {
+            showToast(`Canal ${chIdx + 1}: Ganancia fijada en ${rounded.toFixed(1)} dB`, false);
+          }
+        }
+      } else if (activeMode === "out") {
+        let num = parseFloat(raw);
+        if (isNaN(num)) {
+          showToast("Ingresa un número válido en dB (ej: -12 o 0)", true);
+        } else {
+          const clamped = Math.max(-127.0, Math.min(0.0, num));
+          const rounded = Math.round(clamped * 2) / 2;
+          monitorMix.level_db = rounded;
+          sendCmd({ op: "set_monitor_mix", out: 0, level_db: rounded, pan: monitorMix.pan });
+          showToast(`Volumen fijado en ${rounded.toFixed(1)} dB`, false);
+        }
+      } else if (activeMode === "mix") {
+        let num = parseFloat(raw);
+        if (!isNaN(num)) {
+          let pan = 0.0;
+          if (raw.includes("%") || Math.abs(num) > 1.0) {
+            if (raw.toLowerCase().includes("in") || raw.toLowerCase().includes("placa")) {
+              pan = -Math.min(100, Math.max(0, num)) / 100;
+            } else if (raw.toLowerCase().includes("pc")) {
+              pan = Math.min(100, Math.max(0, num)) / 100;
+            } else {
+              pan = (Math.min(100, Math.max(0, num)) - 50) / 50;
+            }
+          } else {
+            pan = Math.max(-1.0, Math.min(1.0, num));
+          }
+          pan = Math.round(pan * 50) / 50;
+          monitorMix.pan = pan;
+          sendCmd({ op: "set_monitor_mix", out: 0, level_db: monitorMix.level_db, pan: pan });
+        }
+      }
+
+      updateUI();
+    }
+
+    function adjustKnobValueByStep(step) {
+      if (activeMode === "ch0" || activeMode === "ch1") {
+        const chIdx = activeMode === "ch0" ? 0 : 1;
+        let newGain = Math.round((channels[chIdx].gain_db + step) * 2) / 2;
+        newGain = Math.max(MIN_DB, Math.min(MAX_DB, newGain));
+        channels[chIdx].gain_db = newGain;
+        knobVal.value = newGain.toFixed(1);
+        sendCmd({ op: "set_gain", ch: chIdx, db: newGain });
+        updateHaloRing((newGain - MIN_DB) / (MAX_DB - MIN_DB));
+      } else if (activeMode === "out") {
+        let newVol = Math.round((monitorMix.level_db + step) * 2) / 2;
+        newVol = Math.max(-127.0, Math.min(0.0, newVol));
+        monitorMix.level_db = newVol;
+        knobVal.value = newVol.toFixed(1);
+        sendCmd({ op: "set_monitor_mix", out: 0, level_db: newVol, pan: monitorMix.pan });
+        const ratio = Math.max(0, Math.min(1, (newVol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
+        updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.5)");
+      }
+      knobVal.select();
+    }
+
+    // Stop propagation so clicking input does not trigger knob rotary drag or dblclick
+    knobVal.addEventListener("pointerdown", (e) => e.stopPropagation());
+    knobVal.addEventListener("mousedown", (e) => e.stopPropagation());
+    knobVal.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+    knobVal.addEventListener("dblclick", (e) => e.stopPropagation());
+
+    knobVal.addEventListener("focus", () => {
+      isEditingKnob = true;
+      if (activeMode === "ch0" || activeMode === "ch1") {
+        const chIdx = activeMode === "ch0" ? 0 : 1;
+        knobVal.value = channels[chIdx].gain_db.toFixed(1);
+      } else if (activeMode === "out") {
+        knobVal.value = monitorMix.level_db.toFixed(1);
+      }
+      knobUnit.textContent = "ENTER: FIJAR • ESC: SALIR";
+      knobUnit.style.color = "var(--green-evo)";
+      requestAnimationFrame(() => knobVal.select());
+    });
+
+    knobVal.addEventListener("blur", () => {
+      if (isEditingKnob) {
+        commitKnobInput();
+      }
+      knobUnit.style.color = "var(--text-muted)";
+    });
+
+    knobVal.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitKnobInput();
+        knobVal.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        isEditingKnob = false;
+        knobVal.blur();
+        updateUI();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const step = e.shiftKey ? 2.0 : 0.5;
+        adjustKnobValueByStep(step);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const step = e.shiftKey ? -2.0 : -0.5;
+        adjustKnobValueByStep(step);
       }
     });
 
