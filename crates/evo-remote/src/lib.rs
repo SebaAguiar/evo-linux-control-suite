@@ -65,6 +65,8 @@ pub struct RemoteConfig {
     /// (*throttling* por cliente, SAD §2.2). El `watch` conserva solo el último
     /// fotograma, así que las ráfagas se colapsan a ~1 por intervalo.
     pub meter_interval: Duration,
+    /// Dirección del listener de LAN, si se enlazó en paralelo.
+    pub lan_addr: Option<SocketAddr>,
     /// Tamaño máximo de mensaje entrante aceptado por el WebSocket.
     pub max_message_bytes: usize,
 }
@@ -73,6 +75,7 @@ impl Default for RemoteConfig {
     fn default() -> Self {
         Self {
             bind: SocketAddr::from(([127, 0, 0, 1], 8080)),
+            lan_addr: None,
             allow_public_peers: false,
             origin: OriginPolicy::SameHost,
             allowed_origins: Vec::new(),
@@ -80,6 +83,12 @@ impl Default for RemoteConfig {
             max_message_bytes: 64 * 1024,
         }
     }
+}
+
+/// Parámetros de consulta opcionales para `/api/qr.svg`.
+#[derive(Debug, serde::Deserialize)]
+pub struct QrQuery {
+    pub url: Option<String>,
 }
 
 /// Servidor remoto en ejecución.
@@ -115,6 +124,8 @@ pub fn router(core: Arc<EvoCore>, config: RemoteConfig) -> Router {
     };
     Router::new()
         .route("/healthz", get(healthz))
+        .route("/api/info", get(api_info))
+        .route("/api/qr.svg", get(api_qr_svg))
         .route("/", get(index))
         .route("/ws", get(ws::upgrade))
         .with_state(state)
@@ -151,6 +162,119 @@ async fn healthz() -> &'static str {
     "ok"
 }
 
+/// Resuelve dinámicamente la IPv4 local activa consultando la tabla de
+/// enrutamiento del kernel (vía UDP efímero) o enumerando interfaces físicas.
+/// Refleja cambios de DHCP o cambio de red Wi-Fi/LAN al instante.
+fn resolve_lan_ip() -> Option<std::net::Ipv4Addr> {
+    if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("1.1.1.1:80").is_ok() {
+            if let Ok(std::net::SocketAddr::V4(addr)) = socket.local_addr() {
+                let ip = *addr.ip();
+                if !ip.is_loopback() && !ip.is_unspecified() {
+                    return Some(ip);
+                }
+            }
+        }
+    }
+
+    if let Ok(ifaces) = if_addrs::get_if_addrs() {
+        for iface in &ifaces {
+            let n = &iface.name;
+            if n.starts_with("wl") || n.starts_with("en") || n.starts_with("eth") {
+                if let if_addrs::IfAddr::V4(ref v4) = iface.addr {
+                    if !v4.ip.is_loopback() && !v4.ip.is_unspecified() && !v4.ip.is_link_local() {
+                        return Some(v4.ip);
+                    }
+                }
+            }
+        }
+
+        for iface in ifaces {
+            let n = &iface.name;
+            if !n.starts_with("docker")
+                && !n.starts_with("virbr")
+                && !n.starts_with("veth")
+                && !n.starts_with("br-")
+            {
+                if let if_addrs::IfAddr::V4(v4) = iface.addr {
+                    if !v4.ip.is_loopback() && !v4.ip.is_unspecified() && !v4.ip.is_link_local() {
+                        return Some(v4.ip);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn resolve_lan_url(config: &RemoteConfig) -> Option<String> {
+    let port = config.bind.port();
+
+    if let Some(ip) = resolve_lan_ip() {
+        return Some(format!("http://{ip}:{port}"));
+    }
+
+    if let Some(addr) = config.lan_addr {
+        return Some(format!("http://{}:{port}", addr.ip()));
+    }
+
+    None
+}
+
+async fn api_info(
+    axum::extract::State(state): axum::extract::State<AppState>,
+) -> axum::Json<serde_json::Value> {
+    let port = state.config.bind.port();
+    let lan_url = resolve_lan_url(&state.config);
+    let loopback_url = format!("http://127.0.0.1:{port}");
+
+    axum::Json(serde_json::json!({
+        "loopback_url": loopback_url,
+        "lan_url": lan_url,
+        "port": port,
+    }))
+}
+
+async fn api_qr_svg(
+    axum::extract::Query(query): axum::extract::Query<QrQuery>,
+    axum::extract::State(state): axum::extract::State<AppState>,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let target_url = query.url.or_else(|| resolve_lan_url(&state.config)).unwrap_or_else(|| {
+        format!("http://127.0.0.1:{}", state.config.bind.port())
+    });
+
+    match qrcode::QrCode::new(target_url.as_bytes()) {
+        Ok(code) => {
+            let svg_string = code
+                .render::<qrcode::render::svg::Color>()
+                .min_dimensions(260, 260)
+                .dark_color(qrcode::render::svg::Color("#141518"))
+                .light_color(qrcode::render::svg::Color("#ffffff"))
+                .build();
+
+            (
+                axum::http::StatusCode::OK,
+                [
+                    (axum::http::header::CONTENT_TYPE, "image/svg+xml"),
+                    (axum::http::header::CACHE_CONTROL, "no-cache"),
+                ],
+                svg_string,
+            )
+                .into_response()
+        }
+        Err(_) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            [
+                (axum::http::header::CONTENT_TYPE, "text/plain"),
+                (axum::http::header::CACHE_CONTROL, "no-cache"),
+            ],
+            "error generando código QR".to_string(),
+        )
+            .into_response(),
+    }
+}
+
 async fn index() -> Html<std::borrow::Cow<'static, str>> {
     if let Ok(content) = std::fs::read_to_string("apps/remote-web/public/index.html") {
         Html(std::borrow::Cow::Owned(content))
@@ -161,3 +285,63 @@ async fn index() -> Html<std::borrow::Cow<'static, str>> {
 
 /// Cliente web estático para control remoto (`apps/remote-web/public/index.html`).
 const INDEX_HTML: &str = include_str!("../../../apps/remote-web/public/index.html");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use evo_core::CoreConfig;
+    use evo_domain::ModelId;
+    use evo_mock::MockDevice;
+
+    #[tokio::test]
+    async fn api_info_devuelve_urls_esperadas() {
+        let core = Arc::new(EvoCore::spawn(
+            Box::new(MockDevice::new(ModelId::Evo4)),
+            CoreConfig::default(),
+        ));
+        let config = RemoteConfig {
+            bind: SocketAddr::from(([127, 0, 0, 1], 8080)),
+            lan_addr: Some(SocketAddr::from(([192, 168, 1, 50], 8080))),
+            ..RemoteConfig::default()
+        };
+        let info = api_info(axum::extract::State(AppState {
+            core,
+            config: Arc::new(config),
+        }))
+        .await;
+
+        let val = info.0;
+        assert_eq!(val["loopback_url"], "http://127.0.0.1:8080");
+        assert!(val["lan_url"].is_string());
+        let lan_str = val["lan_url"].as_str().unwrap();
+        assert!(lan_str.starts_with("http://") && lan_str.ends_with(":8080"));
+        assert_eq!(val["port"], 8080);
+    }
+
+    #[tokio::test]
+    async fn api_qr_svg_genera_svg_valido() {
+        let core = Arc::new(EvoCore::spawn(
+            Box::new(MockDevice::new(ModelId::Evo4)),
+            CoreConfig::default(),
+        ));
+        let config = RemoteConfig {
+            bind: SocketAddr::from(([127, 0, 0, 1], 8080)),
+            lan_addr: Some(SocketAddr::from(([192, 168, 1, 50], 8080))),
+            ..RemoteConfig::default()
+        };
+        let res = api_qr_svg(
+            axum::extract::Query(QrQuery { url: None }),
+            axum::extract::State(AppState {
+                core,
+                config: Arc::new(config),
+            }),
+        )
+        .await;
+
+        assert_eq!(res.status(), axum::http::StatusCode::OK);
+        assert_eq!(
+            res.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "image/svg+xml"
+        );
+    }
+}

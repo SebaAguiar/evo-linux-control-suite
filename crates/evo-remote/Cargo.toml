@@ -14,6 +14,9 @@ evo-core.workspace = true
 evo-domain.workspace = true
 evo-ipc.workspace = true
 futures-util.workspace = true
+if-addrs.workspace = true
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 # `net` para el listener, `rt` para las tareas, `time` para el throttling de
 # medidores y `sync` para los canales internos de cada sesión.
