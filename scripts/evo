@@ -1,0 +1,438 @@
+#!/usr/bin/env bash
+# EVO Linux Control Suite — Gestor y lanzador de EVO Control
+# Permite iniciar, detener, consultar estado y abrir la interfaz web de Audient EVO.
+
+set -euo pipefail
+
+PORT=8080
+HEALTH_URL="http://127.0.0.1:${PORT}/healthz"
+WEB_URL="http://localhost:${PORT}"
+SYSTEMD_UNIT="evo-daemon.service"
+FALLBACK_LOG="/tmp/evo-daemon.log"
+
+# Colores para la terminal (si es interactiva)
+if [[ -t 1 ]]; then
+  GREEN="\033[1;32m"
+  CYAN="\033[1;36m"
+  YELLOW="\033[1;33m"
+  RED="\033[1;31m"
+  BOLD="\033[1m"
+  RESET="\033[0m"
+else
+  GREEN=""
+  CYAN=""
+  YELLOW=""
+  RED=""
+  BOLD=""
+  RESET=""
+fi
+
+# Localiza la raíz del repositorio de forma robusta
+find_repo_dir() {
+  # 1. Buscar hacia arriba desde el directorio de trabajo actual
+  local cur="${PWD}"
+  while [[ "${cur}" != "/" && -n "${cur}" ]]; do
+    if [[ -f "${cur}/Cargo.toml" ]] && grep -q "evo-daemon" "${cur}/Cargo.toml" 2>/dev/null; then
+      echo "${cur}"
+      return 0
+    fi
+    cur="$(dirname "${cur}")"
+  done
+
+  # 2. Si el script reside dentro de un repositorio (ej. ./scripts/evo)
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -f "${script_dir}/../Cargo.toml" ]] && grep -q "evo-daemon" "${script_dir}/../Cargo.toml" 2>/dev/null; then
+    (cd "${script_dir}/.." && pwd)
+    return 0
+  fi
+
+  # 3. Ruta guardada en configuración por el instalador
+  local config_repo="${HOME}/.config/evo-suite/repo_path"
+  if [[ -f "${config_repo}" ]]; then
+    local saved
+    saved="$(cat "${config_repo}" 2>/dev/null || true)"
+    if [[ -d "${saved}" && -f "${saved}/Cargo.toml" ]]; then
+      echo "${saved}"
+      return 0
+    fi
+  fi
+
+  # 4. Fallback al path conocido
+  if [[ -d "/home/seba/Documentos/trabajo/arsian/evo-linux-control-suite" ]]; then
+    echo "/home/seba/Documentos/trabajo/arsian/evo-linux-control-suite"
+    return 0
+  fi
+
+  return 1
+}
+
+# Resuelve la ruta del binario evo-daemon
+find_daemon_bin() {
+  if command -v evo-daemon >/dev/null 2>&1; then
+    command -v evo-daemon
+    return 0
+  fi
+
+  if [[ -x "${HOME}/.local/bin/evo-daemon" ]]; then
+    echo "${HOME}/.local/bin/evo-daemon"
+    return 0
+  fi
+
+  local repo_dir
+  if repo_dir="$(find_repo_dir 2>/dev/null)"; then
+    if [[ -x "${repo_dir}/target/release/evo-daemon" ]]; then
+      echo "${repo_dir}/target/release/evo-daemon"
+      return 0
+    elif [[ -x "${repo_dir}/target/debug/evo-daemon" ]]; then
+      echo "${repo_dir}/target/debug/evo-daemon"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+is_daemon_running() {
+  if curl -sf "${HEALTH_URL}" >/dev/null 2>&1; then
+    return 0
+  fi
+  if pgrep -x evo-daemon >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+has_systemd_unit() {
+  systemctl --user list-unit-files "${SYSTEMD_UNIT}" 2>/dev/null | grep -q "${SYSTEMD_UNIT}"
+}
+
+get_lan_ip() {
+  # 1. Consulta la tabla de enrutamiento del kernel para la IP de origen activa
+  local ip
+  ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' || true)"
+  if [[ -n "${ip}" ]]; then
+    echo "${ip}"
+    return 0
+  fi
+
+  # 2. Si el daemon está corriendo, consultar su endpoint /api/info
+  local daemon_ip
+  daemon_ip="$(curl -sf --max-time 1 http://127.0.0.1:8080/api/info 2>/dev/null | grep -o '"lan_ip":"[^"]*' | cut -d'"' -f4 || true)"
+  if [[ -n "${daemon_ip}" ]]; then
+    echo "${daemon_ip}"
+    return 0
+  fi
+
+  # 3. Fallback a la primera IP de red no-loopback via hostname
+  hostname -I 2>/dev/null | awk '{print $1}' || true
+}
+
+open_browser() {
+  local target_url="${1:-$WEB_URL}"
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${target_url}" >/dev/null 2>&1 &
+  elif command -v firefox >/dev/null 2>&1; then
+    firefox "${target_url}" >/dev/null 2>&1 &
+  fi
+}
+
+cmd_start() {
+  local should_open_browser="${1:-true}"
+
+  if is_daemon_running; then
+    echo -e "${GREEN}✓${RESET} evo-daemon ya está en ejecución."
+  else
+    echo -e "${CYAN}==>${RESET} Iniciando evo-daemon..."
+
+    if has_systemd_unit; then
+      systemctl --user start "${SYSTEMD_UNIT}"
+    else
+      local bin
+      if ! bin="$(find_daemon_bin)"; then
+        echo -e "${RED}Error:${RESET} No se encontró el binario evo-daemon."
+        echo "Por favor ejecuta primero: cargo build --release -p evo-daemon o ./scripts/install.sh"
+        exit 1
+      fi
+      nohup "${bin}" > "${FALLBACK_LOG}" 2>&1 &
+    fi
+
+    # Esperar hasta 4 segundos a que responda el servidor HTTP
+    local count=0
+    while ! curl -sf "${HEALTH_URL}" >/dev/null 2>&1; do
+      sleep 0.2
+      count=$((count + 1))
+      if [[ $count -ge 20 ]]; then
+        break
+      fi
+    done
+
+    if is_daemon_running; then
+      echo -e "${GREEN}✓${RESET} evo-daemon iniciado con éxito."
+    else
+      echo -e "${YELLOW}Advertencia:${RESET} El proceso se inició pero aún no responde en ${HEALTH_URL}."
+      echo "Revisa los logs con: evo logs"
+    fi
+  fi
+
+  local lan_ip
+  lan_ip="$(get_lan_ip)"
+
+  echo -e "  ${BOLD}Interfaz Web Local:${RESET}  ${CYAN}${WEB_URL}${RESET}"
+  if [[ -n "${lan_ip}" ]]; then
+    echo -e "  ${BOLD}Control Remoto (LAN):${RESET} ${CYAN}http://${lan_ip}:${PORT}${RESET}"
+  fi
+
+  if [[ "${should_open_browser}" == "true" ]]; then
+    echo -e "  Abriendo en tu navegador..."
+    open_browser "${WEB_URL}"
+  fi
+}
+
+cmd_stop() {
+  echo -e "${CYAN}==>${RESET} Deteniendo evo-daemon..."
+  local stopped=false
+
+  if has_systemd_unit && systemctl --user is-active --quiet "${SYSTEMD_UNIT}"; then
+    systemctl --user stop "${SYSTEMD_UNIT}"
+    stopped=true
+  fi
+
+  if pgrep -x evo-daemon >/dev/null 2>&1; then
+    pkill -x evo-daemon || true
+    stopped=true
+  fi
+
+  if [[ "${stopped}" == "true" ]]; then
+    echo -e "${GREEN}✓${RESET} evo-daemon detenido."
+  else
+    echo -e "${YELLOW}i${RESET} evo-daemon no estaba en ejecución."
+  fi
+}
+
+cmd_restart() {
+  cmd_stop
+  sleep 0.5
+  cmd_start "false"
+}
+
+cmd_status() {
+  echo -e "${BOLD}=== Estado de EVO Linux Control Suite ===${RESET}"
+
+  # 1. Estado del proceso / servicio
+  if is_daemon_running; then
+    local pid
+    pid="$(pgrep -x evo-daemon 2>/dev/null || echo "desconocido")"
+    echo -e "  • Daemon:       ${GREEN}En ejecución${RESET} (PID: ${pid})"
+    echo -e "  • Servidor Web: ${GREEN}Respondiendo en puerto ${PORT}${RESET}"
+  else
+    echo -e "  • Daemon:       ${RED}Detenido${RESET}"
+  fi
+
+  if has_systemd_unit; then
+    local unit_active
+    unit_active="$(systemctl --user is-active "${SYSTEMD_UNIT}" 2>/dev/null || echo "inactive")"
+    local unit_enabled
+    unit_enabled="$(systemctl --user is-enabled "${SYSTEMD_UNIT}" 2>/dev/null || echo "disabled")"
+    echo -e "  • Servicio:     systemd (${unit_active}, autostart: ${unit_enabled})"
+  fi
+
+  # 2. URLs de acceso
+  echo
+  echo -e "${BOLD}Acceso Web:${RESET}"
+  echo -e "  • Local:        ${CYAN}${WEB_URL}${RESET}"
+  local lan_ip
+  lan_ip="$(get_lan_ip)"
+  if [[ -n "${lan_ip}" ]]; then
+    echo -e "  • LAN (Móvil):  ${CYAN}http://${lan_ip}:${PORT}${RESET}"
+    echo -e "  • Código QR:    Escribe '${BOLD}evo qr${RESET}' para mostrarlo en terminal"
+  fi
+
+  # 3. Estado del hardware Audient EVO
+  echo
+  echo -e "${BOLD}Hardware EVO 4:${RESET}"
+  if lsusb 2>/dev/null | grep -qi "2708"; then
+    echo -e "  • Conexión USB: ${GREEN}Conectada${RESET}"
+  else
+    echo -e "  • Conexión USB: ${YELLOW}Desconectada (el daemon usa simulador mock)${RESET}"
+  fi
+
+  if [[ -e /dev/evo4 ]]; then
+    echo -e "  • Módulo raw:   ${GREEN}/dev/evo4 activo (+48V y mute por hardware listos)${RESET}"
+  else
+    echo -e "  • Módulo raw:   ${YELLOW}/dev/evo4 ausente (modo estándar ALSA)${RESET}"
+  fi
+}
+
+cmd_logs() {
+  if has_systemd_unit && systemctl --user is-active --quiet "${SYSTEMD_UNIT}"; then
+    journalctl --user -u "${SYSTEMD_UNIT}" -f -n 50
+  elif [[ -f "${FALLBACK_LOG}" ]]; then
+    tail -f "${FALLBACK_LOG}"
+  else
+    echo "No hay logs disponibles de systemd ni en ${FALLBACK_LOG}."
+    echo "Puedes ver logs ejecutando: evo dev"
+  fi
+}
+
+cmd_dev() {
+  local repo_dir
+  if ! repo_dir="$(find_repo_dir)"; then
+    echo -e "${RED}Error:${RESET} No se encontró el repositorio con Cargo.toml para ejecutar en modo desarrollo."
+    exit 1
+  fi
+
+  # Si el servicio systemd está activo, interferirá con el bloqueo exclusivo (lock)
+  local restored_systemd=false
+  if has_systemd_unit && systemctl --user is-active --quiet "${SYSTEMD_UNIT}"; then
+    echo -e "${YELLOW}==>${RESET} Deteniendo temporalmente el servicio evo-daemon de segundo plano..."
+    systemctl --user stop "${SYSTEMD_UNIT}"
+    restored_systemd=true
+  elif pgrep -x evo-daemon >/dev/null 2>&1; then
+    echo -e "${YELLOW}==>${RESET} Deteniendo proceso evo-daemon existente..."
+    pkill -x evo-daemon || true
+    sleep 0.3
+  fi
+
+  if [[ "${restored_systemd}" == "true" ]]; then
+    trap 'echo -e "\n${CYAN}==>${RESET} Restaurando servicio evo-daemon en segundo plano..."; systemctl --user start "${SYSTEMD_UNIT}"' EXIT INT TERM
+  fi
+
+  local args=("$@")
+  if [[ ${#args[@]} -eq 0 ]]; then
+    args=("-v")
+  fi
+
+  echo -e "${CYAN}==>${RESET} Ejecutando evo-daemon en modo interactivo en ${repo_dir}..."
+  cd "${repo_dir}"
+  cargo run -p evo-daemon -- "${args[@]}"
+}
+
+cmd_autostart() {
+  local action="${1:-status}"
+  case "${action}" in
+    enable|on)
+      if ! has_systemd_unit; then
+        echo "Instalando servicio de systemd primero..."
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        "${script_dir}/install.sh" --service-only
+      fi
+      systemctl --user enable --now "${SYSTEMD_UNIT}"
+      echo -e "${GREEN}✓${RESET} Arranque automático activado al iniciar sesión."
+      ;;
+    disable|off)
+      systemctl --user disable "${SYSTEMD_UNIT}"
+      echo -e "${GREEN}✓${RESET} Arranque automático desactivado."
+      ;;
+    status)
+      if has_systemd_unit; then
+        local enabled
+        enabled="$(systemctl --user is-enabled "${SYSTEMD_UNIT}" 2>/dev/null || echo "disabled")"
+        echo "Arranque automático (systemd): ${enabled}"
+      else
+        echo "Servicio systemd no instalado. Ejecuta './scripts/install.sh' para configurarlo."
+      fi
+      ;;
+    *)
+      echo "Uso: evo autostart [on|off|status]"
+      ;;
+  esac
+}
+
+cmd_qr() {
+  local lan_ip
+  lan_ip="$(get_lan_ip)"
+  local target_url
+
+  if [[ -n "${lan_ip}" ]]; then
+    target_url="http://${lan_ip}:${PORT}"
+  else
+    target_url="${WEB_URL}"
+  fi
+
+  echo -e "${BOLD}=== Código QR para Control Remoto Móvil ===${RESET}"
+  if [[ -n "${lan_ip}" ]]; then
+    echo -e "  • IP Local Dinámica:  ${GREEN}${lan_ip}${RESET} (detectada automáticamente)"
+    echo -e "  • Enlace de Red:      ${CYAN}${target_url}${RESET}"
+  else
+    echo -e "  • ${YELLOW}Aviso:${RESET} No se detectó una IP de red local activa (¿Wi-Fi/LAN desconectada?)."
+    echo -e "  • Enlace Local:       ${CYAN}${target_url}${RESET}"
+  fi
+  echo -e "Apunta con la cámara de tu celular conectado a la misma red Wi-Fi:"
+  echo
+
+  if command -v qrencode >/dev/null 2>&1; then
+    qrencode -t ansiutf8 "${target_url}"
+  else
+    echo -e "${YELLOW}Nota:${RESET} qrencode no está instalado. Puedes ver el QR abriendo la web en: ${WEB_URL}"
+  fi
+  echo
+}
+
+cmd_help() {
+  echo -e "${BOLD}evo${RESET} — Gestor de control para Audient EVO Linux Control Suite"
+  echo
+  echo -e "${BOLD}USO:${RESET}"
+  echo "  evo                   Inicia el daemon (si no lo está) y abre la interfaz web"
+  echo "  evo start             Inicia el daemon en segundo plano y abre la interfaz"
+  echo "  evo open              Abre la interfaz web en el navegador"
+  echo "  evo qr                Muestra el código QR para conectar el celular"
+  echo "  evo stop              Detiene el daemon"
+  echo "  evo restart           Reinicia el daemon"
+  echo "  evo status            Muestra el estado del daemon, hardware y URLs"
+  echo "  evo logs              Muestra los logs en tiempo real"
+  echo "  evo dev [opciones]    Ejecuta el daemon en modo interactivo con salida en vivo"
+  echo "  evo autostart [on|off] Configura el arranque automático con el sistema"
+  echo "  evo help              Muestra esta ayuda"
+}
+
+ACTION="${1:-default}"
+
+case "${ACTION}" in
+  default)
+    cmd_start "true"
+    ;;
+  start)
+    cmd_start "${2:-true}"
+    ;;
+  open|ui|web)
+    if ! is_daemon_running; then
+      cmd_start "true"
+    else
+      echo "Abriendo interfaz en el navegador..."
+      open_browser "${WEB_URL}"
+    fi
+    ;;
+  qr)
+    cmd_qr
+    ;;
+  stop)
+    cmd_stop
+    ;;
+  restart)
+    cmd_restart
+    ;;
+  status)
+    cmd_status
+    ;;
+  logs|log)
+    cmd_logs
+    ;;
+  dev)
+    shift
+    cmd_dev "$@"
+    ;;
+  autostart)
+    cmd_autostart "${2:-status}"
+    ;;
+  help|-h|--help)
+    cmd_help
+    ;;
+  *)
+    echo -e "${RED}Comando desconocido:${RESET} ${ACTION}"
+    echo
+    cmd_help
+    exit 1
+    ;;
+esac
