@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=EVO Control
+GenericName=Audio Interface Control
+Comment=Panel de control para tarjetas de sonido Audient EVO (EVO 4, 8, 16)
+Exec=evo
+Icon=evo-control
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;
+Keywords=Audient;EVO;EVO4;Audio;Mixer;Sound;Gain;SmartGain;
+StartupNotify=false
