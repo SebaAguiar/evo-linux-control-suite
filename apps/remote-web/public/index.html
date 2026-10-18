@@ -94,8 +94,6 @@
     }
 
     .conn-status-dot {
-      position: absolute;
-      right: 14px;
       width: 8px;
       height: 8px;
       border-radius: 50%;
@@ -106,6 +104,177 @@
     .conn-status-dot.connected {
       background: var(--green-evo);
       box-shadow: 0 0 8px var(--green-evo);
+    }
+
+    .titlebar-right {
+      position: absolute;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .qr-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #aaa;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .qr-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    .qr-btn svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    /* QR Code Modal Overlay */
+    .qr-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: qrFadeIn 0.15s ease-out;
+    }
+
+    .qr-modal-card {
+      background: #1c1d22;
+      border: 1px solid #333640;
+      border-radius: 16px;
+      width: 320px;
+      max-width: 90vw;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      animation: qrScaleUp 0.15s ease-out;
+    }
+
+    @keyframes qrFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes qrScaleUp {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .qr-modal-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .qr-modal-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #fff;
+    }
+
+    .qr-modal-close {
+      background: transparent;
+      border: none;
+      color: #888;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .qr-modal-close:hover {
+      color: #fff;
+    }
+
+    .qr-code-wrapper {
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      margin-bottom: 14px;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-code-wrapper img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .qr-instructions {
+      font-size: 11.5px;
+      color: #aaa;
+      line-height: 1.4;
+      margin: 0 0 14px 0;
+    }
+
+    .qr-url-box {
+      width: 100%;
+      display: flex;
+      gap: 6px;
+    }
+
+    .qr-url-input {
+      flex: 1;
+      background: #121316;
+      border: 1px solid #2d3038;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: var(--green-evo);
+      font-family: monospace;
+      outline: none;
+      text-align: center;
+    }
+
+    .qr-copy-btn {
+      background: #2a2c34;
+      border: 1px solid #3d404c;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .qr-copy-btn:hover {
+      background: #363944;
+      border-color: #505464;
     }
 
     /* Main Console Surface */
@@ -545,6 +714,26 @@
     <!-- Notification Toast Banner -->
     <div id="toast-banner" class="toast-banner"></div>
 
+    <!-- QR Mobile Connect Modal -->
+    <div class="qr-modal-overlay" id="qr-modal" style="display: none;">
+      <div class="qr-modal-card">
+        <div class="qr-modal-header">
+          <div class="qr-modal-title">Control Móvil</div>
+          <button class="qr-modal-close" id="close-qr-btn">&times;</button>
+        </div>
+        <div class="qr-code-wrapper">
+          <img id="qr-image" src="/api/qr.svg" alt="Código QR de control remoto" />
+        </div>
+        <p class="qr-instructions">
+          Apunta con la cámara de tu celular para abrir EVO Control en la misma red Wi-Fi sin escribir la IP.
+        </p>
+        <div class="qr-url-box">
+          <input type="text" class="qr-url-input" id="qr-url-input" readonly value="http://localhost:8080" />
+          <button class="qr-copy-btn" id="copy-url-btn">Copiar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Window Titlebar -->
     <div class="evo-titlebar">
       <div class="window-dots">
@@ -553,7 +742,15 @@
         <div class="dot max"></div>
       </div>
       <div class="window-title" id="title-text">EVO Control — EVO 4</div>
-      <div class="conn-status-dot" id="conn-indicator" title="Desconectado"></div>
+      <div class="titlebar-right">
+        <button class="qr-btn" id="open-qr-btn" title="Escanear QR para abrir en el celular">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm-5 2h3v2h-3v-2zm2 2h3v2h-3v-2zm3 2h3v2h-3v-2zm-5 0h2v2h-2v-2zm2-4h2v2h-2v-2z"/>
+          </svg>
+          <span>Móvil QR</span>
+        </button>
+        <div class="conn-status-dot" id="conn-indicator" title="Desconectado"></div>
+      </div>
     </div>
 
     <!-- Main Console Surface -->
@@ -1165,6 +1362,91 @@
           ws.send(JSON.stringify({ t: "resync" }));
         }
       }
+    }
+
+    // QR Mobile Connect Modal Handling
+    const qrModal = document.getElementById("qr-modal");
+    const openQrBtn = document.getElementById("open-qr-btn");
+    const closeQrBtn = document.getElementById("close-qr-btn");
+    const qrImage = document.getElementById("qr-image");
+    const qrUrlInput = document.getElementById("qr-url-input");
+    const copyUrlBtn = document.getElementById("copy-url-btn");
+
+    async function updateQrModal() {
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      let targetUrl = window.location.origin;
+
+      try {
+        const res = await fetch("/api/info");
+        if (res.ok) {
+          const info = await res.json();
+          if (isLocalhost && info.lan_url) {
+            targetUrl = info.lan_url;
+          } else if (!isLocalhost) {
+            targetUrl = window.location.origin;
+          } else if (info.lan_url) {
+            targetUrl = info.lan_url;
+          }
+        }
+      } catch (e) {
+        console.warn("No se pudo obtener información de LAN:", e);
+      }
+
+      qrUrlInput.value = targetUrl;
+      qrImage.src = `/api/qr.svg?url=${encodeURIComponent(targetUrl)}&t=${Date.now()}`;
+
+      const instructions = document.querySelector(".qr-instructions");
+      if (instructions) {
+        if (targetUrl.includes("localhost") || targetUrl.includes("127.0.0.1")) {
+          instructions.textContent = "Aviso: No se detectó una IP de red Wi-Fi/LAN activa. Conéctate a una red para permitir acceso desde el celular.";
+          instructions.style.color = "#ff9f0a";
+        } else {
+          instructions.textContent = "Apunta con la cámara de tu celular para abrir EVO Control en la misma red Wi-Fi sin escribir la IP.";
+          instructions.style.color = "#aaa";
+        }
+      }
+    }
+
+    if (openQrBtn && qrModal) {
+      openQrBtn.addEventListener("click", () => {
+        updateQrModal();
+        qrModal.style.display = "flex";
+      });
+
+      closeQrBtn.addEventListener("click", () => {
+        qrModal.style.display = "none";
+      });
+
+      qrModal.addEventListener("click", (e) => {
+        if (e.target === qrModal) {
+          qrModal.style.display = "none";
+        }
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && qrModal.style.display === "flex") {
+          qrModal.style.display = "none";
+        }
+      });
+
+      copyUrlBtn.addEventListener("click", () => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(qrUrlInput.value).then(() => {
+            copyUrlBtn.textContent = "¡Copiado!";
+            setTimeout(() => { copyUrlBtn.textContent = "Copiar"; }, 1800);
+          }).catch(() => {
+            qrUrlInput.select();
+            document.execCommand("copy");
+            copyUrlBtn.textContent = "¡Copiado!";
+            setTimeout(() => { copyUrlBtn.textContent = "Copiar"; }, 1800);
+          });
+        } else {
+          qrUrlInput.select();
+          document.execCommand("copy");
+          copyUrlBtn.textContent = "¡Copiado!";
+          setTimeout(() => { copyUrlBtn.textContent = "Copiar"; }, 1800);
+        }
+      });
     }
 
     connect();
