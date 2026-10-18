@@ -22,13 +22,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({ connStatus, onOpenQr }) => {
       : "Desconectado (iniciando reconexión...)";
 
   return (
-    <div className="evo-titlebar">
-      <div className="window-dots">
-        <div className="dot close" />
-        <div className="dot min" />
-        <div className="dot max" />
+    <header className="evo-titlebar">
+      <div className="titlebar-brand">
+        <span className="brand-badge">EVO 4</span>
+        <span className="brand-subtitle">Control</span>
       </div>
-      <div className="window-title">EVO Control — EVO 4</div>
       <div className="titlebar-right">
         <button
           className="qr-btn"
@@ -42,6 +40,6 @@ export const TitleBar: React.FC<TitleBarProps> = ({ connStatus, onOpenQr }) => {
         </button>
         <div className={`conn-status-dot ${connClass}`} title={connTitle} />
       </div>
-    </div>
+    </header>
   );
 };

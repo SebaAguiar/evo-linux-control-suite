@@ -95,69 +95,78 @@ export function App() {
 
       <TitleBar connStatus={connStatus} onOpenQr={() => setIsQrOpen(true)} />
 
-      <div className="evo-surface">
-        <MainDial
-          activeMode={activeMode}
-          channels={channels}
-          monitorMix={monitorMix}
-          onGainChange={handleGainChange}
-          onMonitorMixChange={handleMonitorMixChange}
-          showToast={showToast}
-        />
+      <div className="evo-surface-viewport">
+        <div className="evo-deck">
+          {/* Left Wing: Inputs */}
+          <section className="deck-col deck-inputs">
+            <div className="col-header">INPUTS</div>
+            <div className="inputs-strips">
+              <ChannelStrip
+                channelIdx={0}
+                channel={channels[0]}
+                isActive={activeMode === "ch0"}
+                onSelect={() => setActiveMode("ch0")}
+                onToggleMute={handleToggleMute}
+                onTogglePhantom={handleTogglePhantom}
+              />
+              <ChannelStrip
+                channelIdx={1}
+                channel={channels[1]}
+                isActive={activeMode === "ch1"}
+                onSelect={() => setActiveMode("ch1")}
+                onToggleMute={handleToggleMute}
+                onTogglePhantom={handleTogglePhantom}
+              />
+            </div>
+            <div
+              className={`smartgain-pill ${smartgainState !== "idle" ? "busy" : ""}`}
+              id="smartgain-btn"
+              onClick={handleSmartGainClick}
+              title="SmartGain: pulsa el botón verde en la placa, elige el canal y pulsa de nuevo para calibrar"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+              </svg>
+              <span>SmartGain</span>
+            </div>
+          </section>
 
-        <SteppersBar
-          activeMode={activeMode}
-          channels={channels}
-          monitorMix={monitorMix}
-          onGainChange={handleGainChange}
-          onMonitorMixChange={handleMonitorMixChange}
-        />
+          {/* Center Column: Main Rotary Dial & Steppers */}
+          <section className="deck-col deck-center">
+            <MainDial
+              activeMode={activeMode}
+              channels={channels}
+              monitorMix={monitorMix}
+              onGainChange={handleGainChange}
+              onMonitorMixChange={handleMonitorMixChange}
+              showToast={showToast}
+            />
 
-        <div className="controls-row">
-          <ChannelStrip
-            channelIdx={0}
-            channel={channels[0]}
-            isActive={activeMode === "ch0"}
-            onSelect={() => setActiveMode("ch0")}
-            onToggleMute={handleToggleMute}
-            onTogglePhantom={handleTogglePhantom}
-          />
+            <SteppersBar
+              activeMode={activeMode}
+              channels={channels}
+              monitorMix={monitorMix}
+              onGainChange={handleGainChange}
+              onMonitorMixChange={handleMonitorMixChange}
+            />
+          </section>
 
-          <CenterCluster
-            activeMode={activeMode}
-            channels={channels}
-            onSelectMode={setActiveMode}
-            onToggleMasterMute={handleToggleMasterMute}
-          />
-
-          <ChannelStrip
-            channelIdx={1}
-            channel={channels[1]}
-            isActive={activeMode === "ch1"}
-            onSelect={() => setActiveMode("ch1")}
-            onToggleMute={handleToggleMute}
-            onTogglePhantom={handleTogglePhantom}
-          />
-        </div>
-
-        {/* SmartGain Pill Button */}
-        <div
-          className={`smartgain-pill ${smartgainState !== "idle" ? "busy" : ""}`}
-          id="smartgain-btn"
-          onClick={handleSmartGainClick}
-          title="SmartGain: pulsa el botón verde en la placa, elige el canal y pulsa de nuevo para calibrar"
-        >
-          <svg viewBox="0 0 24 24">
-            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-          </svg>
-        </div>
-
-        {/* Audient EVO Logo */}
-        <div className="evo-logo">
-          <svg viewBox="0 0 32 32">
-            <path d="M22 8c-3.1 0-5.3 2.1-6 3.1-.7-1-2.9-3.1-6-3.1C5.6 8 2 11.6 2 16s3.6 8 8 8c3.1 0 5.3-2.1 6-3.1.7 1 2.9 3.1 6 3.1 4.4 0 8-3.6 8-8s-3.6-8-8-8zm-12 12c-2.2 0-4-1.8-4-4s1.8-4 4-4c2.4 0 4.1 2.5 5.2 4-1.1 1.5-2.8 4-5.2 4zm12 0c-2.4 0-4.1-2.5-5.2-4 1.1-1.5 2.8-4 5.2-4 2.2 0 4 1.8 4 4s-1.8 4-4 4z" />
-          </svg>
+          {/* Right Wing: Outputs & Monitoring */}
+          <section className="deck-col deck-outputs">
+            <div className="col-header">OUTPUTS</div>
+            <CenterCluster
+              activeMode={activeMode}
+              channels={channels}
+              onSelectMode={setActiveMode}
+              onToggleMasterMute={handleToggleMasterMute}
+            />
+            <div className="evo-logo" title="Audient EVO">
+              <svg viewBox="0 0 32 32">
+                <path d="M22 8c-3.1 0-5.3 2.1-6 3.1-.7-1-2.9-3.1-6-3.1C5.6 8 2 11.6 2 16s3.6 8 8 8c3.1 0 5.3-2.1 6-3.1.7 1 2.9 3.1 6 3.1 4.4 0 8-3.6 8-8s-3.6-8-8-8zm-12 12c-2.2 0-4-1.8-4-4s1.8-4 4-4c2.4 0 4.1 2.5 5.2 4-1.1 1.5-2.8 4-5.2 4zm12 0c-2.4 0-4.1-2.5-5.2-4 1.1-1.5 2.8-4 5.2-4 2.2 0 4 1.8 4 4s-1.8 4-4 4z" />
+              </svg>
+            </div>
+          </section>
         </div>
       </div>
     </div>

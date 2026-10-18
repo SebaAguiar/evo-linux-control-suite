@@ -14,10 +14,10 @@
       {
         "label": "main",
         "title": "EVO Control",
-        "width": 460,
-        "height": 740,
-        "minWidth": 380,
-        "minHeight": 640,
+        "width": 620,
+        "height": 360,
+        "minWidth": 480,
+        "minHeight": 300,
         "center": true,
         "resizable": true
       }

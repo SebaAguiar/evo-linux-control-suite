@@ -27,7 +27,7 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: #0d0e11;
+  background: #191a1d;
   color: var(--text-main);
   overflow: hidden;
 }
@@ -37,59 +37,57 @@ html, body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  background: #191a1d;
 }
 
 /* Floating Window / Chassis */
 .evo-window {
   width: 100%;
   height: 100%;
-  max-width: 480px;
-  background: var(--bg-panel);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.8);
-  overflow-y: auto;
-  overflow-x: hidden;
+  background: #191a1d;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
 }
 
 /* Window Header */
 .evo-titlebar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  background: #18191b;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #141517;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   position: relative;
   flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.window-dots {
-  position: absolute;
-  left: 14px;
+.titlebar-brand {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.brand-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
 }
 
-.dot.close { background: #ff5f56; }
-.dot.min { background: #ffbd2e; }
-.dot.max { background: #27c93f; }
-
-.window-title {
+.brand-subtitle {
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  color: #888;
+  font-weight: 600;
+  color: #72757e;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -112,8 +110,6 @@ html, body {
 }
 
 .titlebar-right {
-  position: absolute;
-  right: 14px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -282,25 +278,101 @@ html, body {
   border-color: #505464;
 }
 
-/* Main Console Surface */
-.evo-surface {
-  padding: 24px 20px 20px;
+/* Main Console Viewport & Horizontal Deck */
+.evo-surface-viewport {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 14px;
+  box-sizing: border-box;
+}
+
+.evo-deck {
+  width: 100%;
+  max-width: 610px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: auto;
+  gap: 14px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.deck-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
-  flex: 1;
+}
+
+.col-header {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #555862;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* Left Wing: Inputs */
+.deck-inputs {
+  min-width: 140px;
+  justify-content: center;
+  gap: 10px;
+}
+
+.inputs-strips {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+/* Center Wing: Main Dial */
+.deck-center {
+  align-items: center;
+  justify-content: center;
+  min-width: 230px;
+  gap: 6px;
+}
+
+/* Right Wing: Outputs */
+.deck-outputs {
+  min-width: 130px;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+}
+
+.deck-outputs .center-cluster {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 500px) {
+  .evo-deck {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 /* Large Central Knob & LED Halo Ring */
 .main-dial-container {
   position: relative;
-  width: 250px;
-  height: 250px;
+  width: 240px;
+  height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
+  margin: 0;
   touch-action: none;
 }
 
@@ -437,8 +509,8 @@ html, body {
 .steppers-bar {
   display: flex;
   gap: 8px;
-  margin-top: -10px;
-  margin-bottom: 22px;
+  margin-top: -6px;
+  margin-bottom: 4px;
   background: rgba(0, 0, 0, 0.3);
   padding: 4px 6px;
   border-radius: 16px;
@@ -477,8 +549,8 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 10px;
-  margin-bottom: 22px;
+  padding: 0 4px;
+  margin-bottom: 4px;
 }
 
 /* Channel Units (Left & Right) */
@@ -702,20 +774,25 @@ html, body {
   color: var(--green-evo);
 }
 
-/* Bottom SmartGain Pill */
+/* SmartGain Pill */
 .smartgain-pill {
-  width: 160px;
-  height: 38px;
-  border-radius: 19px;
+  width: 130px;
+  height: 32px;
+  border-radius: 16px;
   background: var(--green-smartgain);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(53, 199, 89, 0.35);
+  box-shadow: 0 4px 14px rgba(53, 199, 89, 0.35);
   border: none;
   transition: all 0.2s ease;
-  margin-bottom: 18px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin-top: 4px;
 }
 
 .smartgain-pill:hover {
@@ -739,8 +816,8 @@ html, body {
 }
 
 .smartgain-pill svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   fill: #ffffff;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
@@ -752,6 +829,7 @@ html, body {
   justify-content: center;
   opacity: 0.35;
   transition: opacity 0.2s;
+  margin-bottom: 2px;
 }
 
 .evo-logo:hover {
@@ -759,7 +837,7 @@ html, body {
 }
 
 .evo-logo svg {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   fill: #fff;
 }
