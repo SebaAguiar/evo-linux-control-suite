@@ -48,6 +48,11 @@ fi
 install -m 755 "${REPO_DIR}/target/release/evo-daemon" "${BIN_DIR}/evo-daemon"
 echo -e "  ${GREEN}✓${RESET} ${BIN_DIR}/evo-daemon"
 
+if [[ -f "${REPO_DIR}/target/release/evo-desktop" ]]; then
+  install -m 755 "${REPO_DIR}/target/release/evo-desktop" "${BIN_DIR}/evo-desktop"
+  echo -e "  ${GREEN}✓${RESET} ${BIN_DIR}/evo-desktop"
+fi
+
 # 3. Instalar comando CLI `evo` en ~/.local/bin/evo
 cp "${REPO_DIR}/scripts/evo" "${BIN_DIR}/evo"
 chmod +x "${BIN_DIR}/evo"

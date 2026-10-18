@@ -93,6 +93,32 @@ find_daemon_bin() {
   return 1
 }
 
+# Resuelve la ruta del binario evo-desktop si está instalado o compilado
+find_desktop_bin() {
+  if command -v evo-desktop >/dev/null 2>&1; then
+    command -v evo-desktop
+    return 0
+  fi
+
+  if [[ -x "${HOME}/.local/bin/evo-desktop" ]]; then
+    echo "${HOME}/.local/bin/evo-desktop"
+    return 0
+  fi
+
+  local repo_dir
+  if repo_dir="$(find_repo_dir 2>/dev/null)"; then
+    if [[ -x "${repo_dir}/target/release/evo-desktop" ]]; then
+      echo "${repo_dir}/target/release/evo-desktop"
+      return 0
+    elif [[ -x "${repo_dir}/target/debug/evo-desktop" ]]; then
+      echo "${repo_dir}/target/debug/evo-desktop"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
 is_daemon_running() {
   if curl -sf "${HEALTH_URL}" >/dev/null 2>&1; then
     return 0
@@ -137,8 +163,19 @@ open_browser() {
   fi
 }
 
+open_desktop_or_browser() {
+  local desktop_bin
+  if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]] && desktop_bin="$(find_desktop_bin 2>/dev/null)"; then
+    echo -e "  Abriendo aplicación de escritorio EVO Control..."
+    "${desktop_bin}" >/dev/null 2>&1 &
+  else
+    echo -e "  Abriendo en tu navegador..."
+    open_browser "${WEB_URL}"
+  fi
+}
+
 cmd_start() {
-  local should_open_browser="${1:-true}"
+  local should_open_ui="${1:-true}"
 
   if is_daemon_running; then
     echo -e "${GREEN}✓${RESET} evo-daemon ya está en ejecución."
@@ -183,9 +220,8 @@ cmd_start() {
     echo -e "  ${BOLD}Control Remoto (LAN):${RESET} ${CYAN}http://${lan_ip}:${PORT}${RESET}"
   fi
 
-  if [[ "${should_open_browser}" == "true" ]]; then
-    echo -e "  Abriendo en tu navegador..."
-    open_browser "${WEB_URL}"
+  if [[ "${should_open_ui}" == "true" ]]; then
+    open_desktop_or_browser
   fi
 }
 
@@ -370,13 +406,28 @@ cmd_qr() {
   echo
 }
 
+cmd_app() {
+  if ! is_daemon_running; then
+    cmd_start "false"
+  fi
+  local desktop_bin
+  if desktop_bin="$(find_desktop_bin 2>/dev/null)"; then
+    echo "Abriendo aplicación de escritorio EVO Control..."
+    "${desktop_bin}" "$@" >/dev/null 2>&1 &
+  else
+    echo -e "${YELLOW}Aviso:${RESET} Binario de escritorio no encontrado. Abriendo interfaz web..."
+    open_browser "${WEB_URL}"
+  fi
+}
+
 cmd_help() {
   echo -e "${BOLD}evo${RESET} — Gestor de control para Audient EVO Linux Control Suite"
   echo
   echo -e "${BOLD}USO:${RESET}"
-  echo "  evo                   Inicia el daemon (si no lo está) y abre la interfaz web"
-  echo "  evo start             Inicia el daemon en segundo plano y abre la interfaz"
-  echo "  evo open              Abre la interfaz web en el navegador"
+  echo "  evo                   Inicia el daemon (si no lo está) y abre la aplicación"
+  echo "  evo app               Abre la aplicación de escritorio nativa (Tauri)"
+  echo "  evo web               Abre la interfaz web en el navegador"
+  echo "  evo start             Inicia el daemon en segundo plano y abre la aplicación"
   echo "  evo qr                Muestra el código QR para conectar el celular"
   echo "  evo stop              Detiene el daemon"
   echo "  evo restart           Reinicia el daemon"
@@ -396,13 +447,16 @@ case "${ACTION}" in
   start)
     cmd_start "${2:-true}"
     ;;
-  open|ui|web)
+  app|desktop)
+    shift || true
+    cmd_app "$@"
+    ;;
+  open|ui|web|browser)
     if ! is_daemon_running; then
-      cmd_start "true"
-    else
-      echo "Abriendo interfaz en el navegador..."
-      open_browser "${WEB_URL}"
+      cmd_start "false"
     fi
+    echo "Abriendo interfaz en el navegador..."
+    open_browser "${WEB_URL}"
     ;;
   qr)
     cmd_qr
