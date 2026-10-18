@@ -1,0 +1,29 @@
+{
+  "name": "evo-linux-control-suite",
+  "version": "0.1.0",
+  "description": "Native Linux control suite and system daemon for Audient EVO audio interfaces (EVO 4, EVO 8, EVO 16)",
+  "private": true,
+  "license": "MIT",
+  "author": "David Sebastián Aguiar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsian/evo-linux-control-suite.git"
+  },
+  "homepage": "https://github.com/arsian/evo-linux-control-suite#readme",
+  "bugs": {
+    "url": "https://github.com/arsian/evo-linux-control-suite/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "prepare": "husky || true",
+    "check": "cargo check --workspace --exclude evo-desktop",
+    "test": "cargo test --workspace --exclude evo-desktop",
+    "desktop:build": "cd apps/desktop && bun run build",
+    "desktop:dev": "cd apps/desktop && bun run dev"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "husky": "^9.1.7"
+  }
+}
