@@ -1,50 +1,166 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useState, useCallback } from "react";
+import type { ActiveMode } from "./types";
+import { useEvoSocket } from "./hooks/useEvoSocket";
+import { TitleBar } from "./components/TitleBar";
+import { MainDial } from "./components/MainDial";
+import { SteppersBar } from "./components/SteppersBar";
+import { ChannelStrip } from "./components/ChannelStrip";
+import { CenterCluster } from "./components/CenterCluster";
+import { QrModal } from "./components/QrModal";
+import { ToastBanner } from "./components/ToastBanner";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+export function App() {
+  const [activeMode, setActiveMode] = useState<ActiveMode>("ch0");
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  const {
+    channels,
+    setChannels,
+    monitorMix,
+    setMonitorMix,
+    smartgainState,
+    connStatus,
+    sendCmd,
+    toast,
+    showToast,
+  } = useEvoSocket();
+
+  const handleGainChange = useCallback(
+    (chIdx: number, newGain: number) => {
+      setChannels((prev) => {
+        const next = [...prev];
+        if (next[chIdx]) {
+          next[chIdx] = { ...next[chIdx], gain_db: newGain };
+        }
+        return next;
+      });
+      sendCmd({ op: "set_gain", ch: chIdx, db: newGain });
+    },
+    [sendCmd, setChannels]
+  );
+
+  const handleToggleMute = useCallback(
+    (chIdx: number) => {
+      const current = channels[chIdx]?.muted;
+      setChannels((prev) => {
+        const next = [...prev];
+        if (next[chIdx]) {
+          next[chIdx] = { ...next[chIdx], muted: !current };
+        }
+        return next;
+      });
+      sendCmd({ op: "set_mute", ch: chIdx, on: !current });
+    },
+    [channels, sendCmd, setChannels]
+  );
+
+  const handleTogglePhantom = useCallback(
+    (chIdx: number) => {
+      const current = channels[chIdx]?.phantom;
+      sendCmd({ op: "set_phantom", ch: chIdx, on: !current });
+    },
+    [channels, sendCmd]
+  );
+
+  const handleToggleMasterMute = useCallback(() => {
+    const allMuted = channels.length > 0 && channels.every((c) => !!c.muted);
+    const targetState = !allMuted;
+    for (let i = 0; i < channels.length; i++) {
+      if (channels[i].muted !== targetState) {
+        sendCmd({ op: "set_mute", ch: i, on: targetState });
+      }
+    }
+  }, [channels, sendCmd]);
+
+  const handleMonitorMixChange = useCallback(
+    (levelDb: number, pan: number) => {
+      setMonitorMix({ level_db: levelDb, pan });
+      sendCmd({ op: "set_monitor_mix", out: 0, level_db: levelDb, pan });
+    },
+    [sendCmd, setMonitorMix]
+  );
+
+  const handleSmartGainClick = useCallback(() => {
+    showToast(
+      "SmartGain: 1) Pulsa el botón verde en la placa. 2) Toca el canal (1 o 2) que titila. 3) Pulsa SmartGain de nuevo para calibrar.",
+      false
+    );
+  }, [showToast]);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <div className="evo-window">
+      <ToastBanner toast={toast} />
+      <QrModal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <TitleBar connStatus={connStatus} onOpenQr={() => setIsQrOpen(true)} />
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+      <div className="evo-surface">
+        <MainDial
+          activeMode={activeMode}
+          channels={channels}
+          monitorMix={monitorMix}
+          onGainChange={handleGainChange}
+          onMonitorMixChange={handleMonitorMixChange}
+          showToast={showToast}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+
+        <SteppersBar
+          activeMode={activeMode}
+          channels={channels}
+          monitorMix={monitorMix}
+          onGainChange={handleGainChange}
+          onMonitorMixChange={handleMonitorMixChange}
+        />
+
+        <div className="controls-row">
+          <ChannelStrip
+            channelIdx={0}
+            channel={channels[0]}
+            isActive={activeMode === "ch0"}
+            onSelect={() => setActiveMode("ch0")}
+            onToggleMute={handleToggleMute}
+            onTogglePhantom={handleTogglePhantom}
+          />
+
+          <CenterCluster
+            activeMode={activeMode}
+            channels={channels}
+            onSelectMode={setActiveMode}
+            onToggleMasterMute={handleToggleMasterMute}
+          />
+
+          <ChannelStrip
+            channelIdx={1}
+            channel={channels[1]}
+            isActive={activeMode === "ch1"}
+            onSelect={() => setActiveMode("ch1")}
+            onToggleMute={handleToggleMute}
+            onTogglePhantom={handleTogglePhantom}
+          />
+        </div>
+
+        {/* SmartGain Pill Button */}
+        <div
+          className={`smartgain-pill ${smartgainState !== "idle" ? "busy" : ""}`}
+          id="smartgain-btn"
+          onClick={handleSmartGainClick}
+          title="SmartGain: pulsa el botón verde en la placa, elige el canal y pulsa de nuevo para calibrar"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+          </svg>
+        </div>
+
+        {/* Audient EVO Logo */}
+        <div className="evo-logo">
+          <svg viewBox="0 0 32 32">
+            <path d="M22 8c-3.1 0-5.3 2.1-6 3.1-.7-1-2.9-3.1-6-3.1C5.6 8 2 11.6 2 16s3.6 8 8 8c3.1 0 5.3-2.1 6-3.1.7 1 2.9 3.1 6 3.1 4.4 0 8-3.6 8-8s-3.6-8-8-8zm-12 12c-2.2 0-4-1.8-4-4s1.8-4 4-4c2.4 0 4.1 2.5 5.2 4-1.1 1.5-2.8 4-5.2 4zm12 0c-2.4 0-4.1-2.5-5.2-4 1.1-1.5 2.8-4 5.2-4 2.2 0 4 1.8 4 4s-1.8 4-4 4z" />
+          </svg>
+        </div>
+      </div>
+    </div>
   );
 }
 
