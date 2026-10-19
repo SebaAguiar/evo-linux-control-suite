@@ -61,7 +61,9 @@ pub fn is_allowed_origin(origin: Option<&str>, policy: OriginPolicy, allowed: &[
                 }
                 match origin_host(o) {
                     Some(host) => {
-                        host.eq_ignore_ascii_case("localhost")
+                        let lower = host.to_ascii_lowercase();
+                        lower == "localhost"
+                            || lower.ends_with(".localhost")
                             || host
                                 .parse::<IpAddr>()
                                 .map(|ip| is_allowed_peer(ip, false))
@@ -135,6 +137,11 @@ mod tests {
         ));
         assert!(is_allowed_origin(
             Some("http://[::1]:8080"),
+            OriginPolicy::SameHost,
+            &[]
+        ));
+        assert!(is_allowed_origin(
+            Some("http://tauri.localhost"),
             OriginPolicy::SameHost,
             &[]
         ));

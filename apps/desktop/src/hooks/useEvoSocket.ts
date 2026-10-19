@@ -146,16 +146,15 @@ export function useEvoSocket() {
         }
       });
 
-      ws.addEventListener("close", () => {
+      const scheduleReconnect = () => {
         if (!active) return;
         setConnStatus("disconnected");
-        reconnectTimeout = setTimeout(connect, 2000);
-      });
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = setTimeout(connect, 1500);
+      };
 
-      ws.addEventListener("error", () => {
-        if (!active) return;
-        setConnStatus("disconnected");
-      });
+      ws.addEventListener("close", scheduleReconnect);
+      ws.addEventListener("error", scheduleReconnect);
     }
 
     connect();

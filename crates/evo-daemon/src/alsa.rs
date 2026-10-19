@@ -531,6 +531,16 @@ impl EvoDevice for Evo4HwDevice {
                         mix = data[0].clamp(0, 127);
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(3));
+                if let Ok(data) = evo_raw_get_cur(file, (2 << 8) | 1, 0x0A00, 2) {
+                    if data.len() >= 2 {
+                        let raw = i16::from_le_bytes([data[0], data[1]]);
+                        let vol_db = (raw as f32) / 256.0;
+                        let vol_step = (((vol_db + 127.0) / 0.5).round() as i32).clamp(0, 254) as u32;
+                        let mut s = self.shared.lock().unwrap();
+                        s.volume_step = vol_step;
+                    }
+                }
 
                 let mut s = self.shared.lock().unwrap();
                 s.gain_steps = gains;
@@ -553,12 +563,12 @@ impl EvoDevice for Evo4HwDevice {
                     s.gain_steps[3] = steps[3];
                 }
             }
-        }
 
-        // Actualizamos volumen de salida desde ALSA numid=4
-        if let Ok(vol) = query_playback_volume(&self.card) {
-            let mut s = self.shared.lock().unwrap();
-            s.volume_step = vol;
+            // Actualizamos volumen de salida desde ALSA numid=4 en modo fallback
+            if let Ok(vol) = query_playback_volume(&self.card) {
+                let mut s = self.shared.lock().unwrap();
+                s.volume_step = vol;
+            }
         }
 
         let s = self.shared.lock().unwrap();
@@ -711,13 +721,12 @@ impl EvoDevice for Evo4HwDevice {
             }
 
             DeviceCommand::SetMonitorMix { out, level_db, pan } => {
-                // 1. Control de volumen general de salida (ALSA numid=4 'EVO4 Playback Volume', 0 a 254 pasos)
+                // 1. Control de volumen general de salida (0 a 254 pasos)
                 let step = (((level_db + 127.0) / 0.5).round() as i32).clamp(0, 254) as u32;
                 {
                     let mut s = self.shared.lock().unwrap();
                     s.volume_step = step;
                 }
-                let _ = write_playback_volume(&self.card, step);
 
                 // 2. Mix entre PC y placa (Extension Unit 56 CS=0 en /dev/evo4):
                 // pan en [-1.0, 1.0] -> 0 = 100% entrada/placa, 127 = 100% PC/DAW, 64 = 50/50 balance
@@ -728,11 +737,20 @@ impl EvoDevice for Evo4HwDevice {
                 }
 
                 if let Some(file) = &self.raw_dev {
+                    // Feature Unit 10 (0x0A00) controla el volumen de salida físico por USB ioctl
+                    let raw_vol = (level_db * 256.0).round().clamp(-32512.0, 0.0) as i16;
+                    let vol_bytes = raw_vol.to_le_bytes();
+                    for ch in 1..=4 {
+                        let _ = evo_raw_set_cur(file, (2 << 8) | ch, 0x0A00, &vol_bytes);
+                    }
+
                     if let Err(e) = evo_raw_set_cur(file, 0x0000, 0x3800, &[raw_mix, 0]) {
                         if is_stale_fd(&e) {
                             self.raw_dev = None;
                         }
                     }
+                } else {
+                    let _ = write_playback_volume(&self.card, step);
                 }
 
                 Ok(vec![DeviceEvent::MonitorMixChanged { out, level_db, pan }])
