@@ -1041,6 +1041,7 @@ dependencies = [
  "evo-persist",
  "evo-ports",
  "evo-remote",
+ "futures-util",
  "if-addrs",
  "libc",
  "serde_json",

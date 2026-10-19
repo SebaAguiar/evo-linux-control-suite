@@ -6,6 +6,7 @@ interface ChannelStripProps {
   channelIdx: 0 | 1;
   channel: ChannelState;
   isActive: boolean;
+  meterDb?: number;
   onSelect: () => void;
   onToggleMute: (chIdx: number) => void;
   onTogglePhantom: (chIdx: number) => void;
@@ -15,6 +16,7 @@ export const ChannelStrip: React.FC<ChannelStripProps> = ({
   channelIdx,
   channel,
   isActive,
+  meterDb,
   onSelect,
   onToggleMute,
   onTogglePhantom,
@@ -25,6 +27,11 @@ export const ChannelStrip: React.FC<ChannelStripProps> = ({
   const ratio = Math.max(0, Math.min(1, channel.gain_db / MAX_DB));
   const strokeOffset = circ * (1 - ratio);
   const strokeColor = channel.muted ? "var(--red-mute)" : "var(--green-evo)";
+
+  // Nivel de medidor VU en dBFS (-60 a 0 dBFS)
+  const meterVal = meterDb ?? -128;
+  const meterRatio = channel.muted ? 0 : Math.max(0, Math.min(1, (meterVal + 60) / 60));
+  const meterColor = meterVal > -3 ? "#ff3b30" : meterVal > -18 ? "#ffcc00" : "var(--green-evo)";
 
   const handlePhantomClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -67,6 +74,23 @@ export const ChannelStrip: React.FC<ChannelStripProps> = ({
                 stroke: strokeColor,
               }}
             />
+            {meterRatio > 0.03 && (
+              <circle
+                className="mini-dial-meter"
+                cx="24"
+                cy="24"
+                r="22.5"
+                fill="none"
+                stroke={meterColor}
+                strokeWidth="2.5"
+                strokeDasharray="141.4"
+                style={{
+                  strokeDashoffset: 141.4 * (1 - meterRatio),
+                  filter: `drop-shadow(0 0 3px ${meterColor})`,
+                  transition: "stroke-dashoffset 0.05s ease-out",
+                }}
+              />
+            )}
           </svg>
           <div className="mini-knob" />
         </div>

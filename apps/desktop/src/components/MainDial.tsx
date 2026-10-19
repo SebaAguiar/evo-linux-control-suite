@@ -8,6 +8,7 @@ interface MainDialProps {
   activeMode: ActiveMode;
   channels: ChannelState[];
   monitorMix: MonitorMixState;
+  meterDb?: number;
   onGainChange: (chIdx: number, gainDb: number) => void;
   onMonitorMixChange: (levelDb: number, pan: number) => void;
   showToast: (text: string, isError?: boolean) => void;
@@ -17,15 +18,26 @@ export const MainDial: React.FC<MainDialProps> = ({
   activeMode,
   channels,
   monitorMix,
+  meterDb,
   onGainChange,
   onMonitorMixChange,
   showToast,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [userAdjusting, setUserAdjusting] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dialRef = useRef<HTMLDivElement>(null);
+  const adjustTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const noteAdjustment = useCallback(() => {
+    setUserAdjusting(true);
+    if (adjustTimerRef.current) clearTimeout(adjustTimerRef.current);
+    adjustTimerRef.current = setTimeout(() => {
+      setUserAdjusting(false);
+    }, 1200);
+  }, []);
 
   // Active value & labels
   const currentInfo = useMemo(() => {
@@ -104,12 +116,24 @@ export const MainDial: React.FC<MainDialProps> = ({
     ? "var(--color-accent-glow)"
     : "var(--led-glow)";
 
+  // Cómputo de vúmetro en dBFS (-60 a 0 dBFS)
+  const meterVal = meterDb ?? -128;
+  const isMeterActive =
+    (activeMode === "ch0" || activeMode === "ch1") &&
+    !currentInfo.isMuted &&
+    !userAdjusting &&
+    !isDragging &&
+    !isEditing;
+  const meterRatio = Math.max(0, Math.min(1, (meterVal + 60) / 60));
+  const meterLedCount = isMeterActive ? Math.round(meterRatio * TOTAL_LEDS) : 0;
+
   // Drag interaction
   const isDraggingRef = useRef(false);
   const startYRef = useRef(0);
   const startValRef = useRef(0);
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    noteAdjustment();
     isDraggingRef.current = true;
     setIsDragging(true);
     startYRef.current = e.clientY;
@@ -125,6 +149,7 @@ export const MainDial: React.FC<MainDialProps> = ({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDraggingRef.current) return;
+    noteAdjustment();
     const deltaY = startYRef.current - e.clientY;
 
     if (activeMode === "ch0" || activeMode === "ch1") {
@@ -153,6 +178,7 @@ export const MainDial: React.FC<MainDialProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    noteAdjustment();
     isDraggingRef.current = false;
     setIsDragging(false);
     if (dialRef.current && dialRef.current.hasPointerCapture(e.pointerId)) {
@@ -162,6 +188,7 @@ export const MainDial: React.FC<MainDialProps> = ({
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
+    noteAdjustment();
     const dir = e.deltaY < 0 ? 1 : -1;
 
     if (activeMode === "ch0" || activeMode === "ch1") {
@@ -317,7 +344,27 @@ export const MainDial: React.FC<MainDialProps> = ({
     >
       <svg className="halo-svg" viewBox="0 0 250 250">
         {haloDots.map((dot, idx) => {
-          const isActive = idx < activeLedCount;
+          let dotColor = "var(--led-inactive)";
+          let dotGlow = "none";
+
+          if (isMeterActive && meterLedCount > 0) {
+            // Modo Vúmetro en Vivo:
+            if (idx < meterLedCount) {
+              // Gradiente VU clásico: Verde (0..15), Ámbar (16..21), Rojo de saturación (22..23)
+              dotColor = idx >= 22 ? "#ff3b30" : idx >= 16 ? "#ffcc00" : "var(--green-evo)";
+              dotGlow = `drop-shadow(0 0 5px ${dotColor})`;
+            } else if (idx === activeLedCount - 1) {
+              // Marcador discreto del punto de ganancia ajustado
+              dotColor = "rgba(255, 255, 255, 0.5)";
+              dotGlow = "none";
+            }
+          } else {
+            // Modo Ajuste / Estático: arco de ganancia, volumen o balance
+            const isActive = idx < activeLedCount;
+            dotColor = isActive ? haloColor : "var(--led-inactive)";
+            dotGlow = isActive ? `drop-shadow(0 0 4px ${haloGlow})` : "none";
+          }
+
           return (
             <circle
               key={idx}
@@ -325,9 +372,10 @@ export const MainDial: React.FC<MainDialProps> = ({
               cy={dot.y}
               r={4.2}
               className="halo-dot"
-              fill={isActive ? haloColor : "var(--led-inactive)"}
+              fill={dotColor}
               style={{
-                filter: isActive ? `drop-shadow(0 0 4px ${haloGlow})` : "none",
+                filter: dotGlow,
+                transition: isMeterActive ? "fill 0.05s ease-out, filter 0.05s ease-out" : "none",
               }}
             />
           );

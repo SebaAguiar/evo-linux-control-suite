@@ -29,6 +29,7 @@ export function App() {
     sendCmd,
     toast,
     showToast,
+    meters,
   } = useEvoSocket();
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export function App() {
                 channelIdx={0}
                 channel={channels[0]}
                 isActive={activeMode === "ch0"}
+                meterDb={meters[0]}
                 onSelect={() => setActiveMode("ch0")}
                 onToggleMute={handleToggleMute}
                 onTogglePhantom={handleTogglePhantom}
@@ -136,6 +138,7 @@ export function App() {
                 channelIdx={1}
                 channel={channels[1]}
                 isActive={activeMode === "ch1"}
+                meterDb={meters[1]}
                 onSelect={() => setActiveMode("ch1")}
                 onToggleMute={handleToggleMute}
                 onTogglePhantom={handleTogglePhantom}
@@ -161,6 +164,7 @@ export function App() {
               activeMode={activeMode}
               channels={channels}
               monitorMix={monitorMix}
+              meterDb={activeMode === "ch0" ? meters[0] : activeMode === "ch1" ? meters[1] : undefined}
               onGainChange={handleGainChange}
               onMonitorMixChange={handleMonitorMixChange}
               showToast={showToast}

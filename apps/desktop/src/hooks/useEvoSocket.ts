@@ -23,6 +23,7 @@ export function useEvoSocket() {
   const [smartgainState, setSmartgainState] = useState<string>("idle");
   const [connStatus, setConnStatus] = useState<ConnectionStatus>("disconnected");
   const [toast, setToast] = useState<ToastInfo | null>(null);
+  const [meters, setMeters] = useState<number[]>([-128, -128]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef<number>(1);
@@ -54,6 +55,7 @@ export function useEvoSocket() {
 
       const wsUrl = "ws://127.0.0.1:8080/ws";
       const ws = new WebSocket(wsUrl);
+      ws.binaryType = "arraybuffer";
       wsRef.current = ws;
 
       ws.addEventListener("open", () => {
@@ -62,7 +64,20 @@ export function useEvoSocket() {
       });
 
       ws.addEventListener("message", (event) => {
-        if (!active || typeof event.data !== "string") return;
+        if (!active) return;
+
+        // Fotogramas binarios de medidores de alta frecuencia (SAD §4.6)
+        if (event.data instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(event.data);
+          if (bytes[0] === 0x01 && bytes.length >= 4) {
+            const len = bytes[3];
+            const peaks = new Int8Array(event.data, 4, Math.min(len, bytes.length - 4));
+            setMeters(Array.from(peaks));
+          }
+          return;
+        }
+
+        if (typeof event.data !== "string") return;
         try {
           const msg = JSON.parse(event.data);
           if (typeof msg.rev === "number") {
@@ -162,5 +177,6 @@ export function useEvoSocket() {
     sendCmd,
     toast,
     showToast,
+    meters,
   };
 }

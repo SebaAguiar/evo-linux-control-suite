@@ -23,6 +23,7 @@ pub mod alsa;
 pub mod cli;
 mod device;
 pub mod lock;
+pub mod meter;
 pub mod net;
 mod persist;
 
@@ -142,6 +143,8 @@ pub struct Daemon {
     lan: Option<RemoteHandle>,
     persist_stop: Option<oneshot::Sender<()>>,
     persist_task: JoinHandle<()>,
+    meter_stop: Option<oneshot::Sender<()>>,
+    meter_task: Option<JoinHandle<()>>,
     _lock: Option<lock::SingleInstance>,
 }
 
@@ -209,12 +212,36 @@ impl Daemon {
             persist_rx,
         ));
 
+        // 6. Tarea de medidores de audio en tiempo real (~30 FPS).
+        let profile = registry
+            .by_model(config.model)
+            .map(|f| f.profile())
+            .unwrap_or_else(evo_domain::DeviceProfile::evo4);
+        let mut meter_source = meter::create_meter_source(is_hw, &profile);
+        let (meter_stop_tx, mut meter_stop_rx) = oneshot::channel();
+        let meter_core = Arc::clone(&core);
+        let meter_task = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(33));
+            loop {
+                tokio::select! {
+                    _ = &mut meter_stop_rx => break,
+                    _ = interval.tick() => {
+                        let frame = meter_source.latest();
+                        meter_core.publish_meters(frame);
+                    }
+                }
+            }
+            let _ = meter_source.stop();
+        });
+
         Ok(Self {
             core,
             loopback,
             lan,
             persist_stop: Some(persist_stop),
             persist_task,
+            meter_stop: Some(meter_stop_tx),
+            meter_task: Some(meter_task),
             _lock,
         })
     }
@@ -242,6 +269,8 @@ impl Daemon {
             lan,
             persist_stop,
             persist_task,
+            meter_stop,
+            meter_task,
             _lock,
         } = self;
 
@@ -251,7 +280,17 @@ impl Daemon {
         }
         loopback.shutdown().await;
 
-        // 2. Pedir el volcado final y esperar a que la tarea termine.
+        // 2. Detener la tarea de medidores.
+        if let Some(stop) = meter_stop {
+            let _ = stop.send(());
+        }
+        if let Some(task) = meter_task {
+            if let Err(err) = task.await {
+                tracing::warn!(error = %err, "la tarea de medidores terminó de forma anómala");
+            }
+        }
+
+        // 3. Pedir el volcado final y esperar a que la tarea termine.
         if let Some(stop) = persist_stop {
             let _ = stop.send(());
         }
@@ -259,7 +298,7 @@ impl Daemon {
             tracing::warn!(error = %err, "la tarea de persistencia terminó de forma anómala");
         }
 
-        // 3. Apagar el núcleo y unir el hilo del actor. `shutdown` es síncrono y
+        // 4. Apagar el núcleo y unir el hilo del actor. `shutdown` es síncrono y
         //    bloquea hasta que el actor sale, así que fuera del reactor.
         match Arc::try_unwrap(core) {
             Ok(core) => {
@@ -405,5 +444,46 @@ mod tests {
         let commands = replay_commands(&doc, 2);
         assert_eq!(commands.len(), 4);
         assert!(commands.iter().all(|cmd| cmd.channel().unwrap_or(0) < 2));
+    }
+
+    #[tokio::test]
+    async fn el_daemon_publica_fotogramas_de_medidores_por_websocket() {
+        let tmp = tempfile::tempdir().unwrap();
+        let state_path = tmp.path().join("config.toml");
+        let lock_path = tmp.path().join("lock");
+
+        let mut config = DaemonConfig::default();
+        config.state_path = state_path;
+        config.lock_path = lock_path;
+        config.acquire_lock = false;
+        config.server_override = Some(ServerConfig {
+            enabled: false,
+            interface: None,
+            port: 0,
+        });
+
+        let daemon = Daemon::start(config).await.expect("daemon arranca");
+        let ws_url = format!("ws://{}/ws", daemon.loopback_addr());
+
+        let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url).await.expect("ws conecta");
+        use futures_util::StreamExt;
+
+        let mut received_binary_meter = false;
+        for _ in 0..10 {
+            let msg = tokio::time::timeout(Duration::from_millis(500), ws.next())
+                .await
+                .expect("timeout esperando frame")
+                .expect("stream cerrado")
+                .expect("error en ws");
+            if let tokio_tungstenite::tungstenite::Message::Binary(bytes) = msg {
+                let frame = evo_domain::MeterFrame::decode(&bytes).expect("frame decodifica");
+                assert_eq!(frame.channels(), 2);
+                received_binary_meter = true;
+                break;
+            }
+        }
+
+        assert!(received_binary_meter, "debe recibirse fotograma binario de medidores");
+        daemon.shutdown().await;
     }
 }
