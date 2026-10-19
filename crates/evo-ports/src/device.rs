@@ -65,7 +65,19 @@ pub trait EvoDevice: Send {
     fn close(&mut self) -> Result<(), DeviceError> {
         Ok(())
     }
+
+    /// Registra un sumidero de eventos para recibir notificaciones reactivas
+    /// directamente desde el hardware (giro físico de perillas, botones, etc.).
+    ///
+    /// Por defecto no hace nada si el adaptador no soporta push asíncrono.
+    fn set_hw_event_sink(&mut self, sink: HwEventCallback) {
+        let _ = sink;
+    }
 }
+
+/// Callback para notificaciones reactivas emitidas directamente por el hardware
+/// (p. ej. eventos de mezclador ALSA o interrupt endpoint).
+pub type HwEventCallback = Box<dyn Fn(DeviceEvent) + Send + Sync + 'static>;
 
 /// Reapertura de un dispositivo tras una desconexión (SAD §8.6, *hot-plug*).
 ///

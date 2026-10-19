@@ -6,7 +6,7 @@ use std::time::Duration;
 use evo_domain::{
     ConnectionState, DeviceCommand, DeviceError, DeviceEvent, DeviceProfile, DeviceState, ModelId,
 };
-use evo_ports::EvoDevice;
+use evo_ports::{EvoDevice, HwEventCallback};
 
 /// Fallo programado para el próximo comando.
 ///
@@ -49,6 +49,8 @@ pub struct MockDevice {
     /// cuesta ~1 ms (SAD §2.2); modelarla es lo que hace que el *coalescing*
     /// tenga algo que coalescer en los tests.
     apply_delay: Option<Duration>,
+    /// Receptor registrado para despachar eventos reactivos de hardware hacia el actor.
+    hw_sink: Arc<Mutex<Option<HwEventCallback>>>,
 }
 
 impl MockDevice {
@@ -64,6 +66,7 @@ impl MockDevice {
             pending_fault: Arc::new(Mutex::new(None)),
             can_read_state: false,
             apply_delay: None,
+            hw_sink: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -79,6 +82,7 @@ impl MockDevice {
             pending_fault: Arc::new(Mutex::new(None)),
             can_read_state: false,
             apply_delay: None,
+            hw_sink: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -215,9 +219,24 @@ impl EvoDevice for MockDevice {
         self.connection = ConnectionState::Disconnected;
         Ok(())
     }
+
+    fn set_hw_event_sink(&mut self, sink: HwEventCallback) {
+        *self.hw_sink.lock().expect("mutex envenenado") = Some(sink);
+    }
 }
 
 impl MockDevice {
+    /// Dispara un evento simulado de hardware físico (como si el usuario girara la perilla física o pulsara un botón).
+    pub fn trigger_hw_event(&self, event: DeviceEvent) {
+        if let Some(sink) = self.hw_sink.lock().expect("mutex envenenado").as_ref() {
+            sink(event);
+        }
+    }
+
+    /// Handle compartido al disparador de eventos de hardware.
+    pub fn hw_trigger(&self) -> Arc<Mutex<Option<HwEventCallback>>> {
+        Arc::clone(&self.hw_sink)
+    }
     /// Aplica el comando al estado interno, validando índices y capacidades como
     /// haría un driver real.
     fn apply_validated(&mut self, cmd: DeviceCommand) -> Result<Vec<DeviceEvent>, DeviceError> {

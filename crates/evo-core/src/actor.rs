@@ -24,8 +24,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use evo_domain::{
-    ConnectionState, DeviceCommand, DeviceError, DeviceEvent, StateOp, StateSnapshot,
-    state_ops_from_events,
+    ConnectionState, DeviceCommand, DeviceError, DeviceEvent, SmartGainPhase, StateOp,
+    StateSnapshot, state_ops_from_events,
 };
 use evo_ports::{EventSink, EvoDevice, ReopenFn};
 use tokio::sync::{mpsc, oneshot, watch};
@@ -57,6 +57,24 @@ pub(crate) enum CoreRequest {
     Resync { reply: oneshot::Sender<()> },
 }
 
+/// Origen del despertar del bucle del actor.
+enum WakeSource {
+    Request(Option<CoreRequest>),
+    HwEvent(DeviceEvent),
+}
+
+/// Espera concurrente por petición de software o evento reactivo de hardware.
+async fn next_wake(
+    rx: &mut mpsc::Receiver<CoreRequest>,
+    hw_rx: &mut mpsc::UnboundedReceiver<DeviceEvent>,
+) -> WakeSource {
+    tokio::select! {
+        biased;
+        req = rx.recv() => WakeSource::Request(req),
+        Some(hw_ev) = hw_rx.recv() => WakeSource::HwEvent(hw_ev),
+    }
+}
+
 /// Resultado de intentar aplicar un comando al hardware.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ApplyOutcome {
@@ -80,11 +98,13 @@ pub(crate) struct Actor {
     config: CoreConfig,
     origin: Instant,
     poll_quiet_until: Duration,
+    hw_tx: mpsc::UnboundedSender<DeviceEvent>,
+    hw_rx: mpsc::UnboundedReceiver<DeviceEvent>,
 }
 
 impl Actor {
     pub(crate) fn new(
-        device: Box<dyn EvoDevice>,
+        mut device: Box<dyn EvoDevice>,
         reopen: Option<ReopenFn>,
         config: CoreConfig,
         sink: Arc<dyn EventSink>,
@@ -94,6 +114,12 @@ impl Actor {
         let profile = device.profile().clone();
         let store = StateStore::initial(profile);
         let safety = SafetyRuntime::new(config.policy);
+        let (hw_tx, hw_rx) = mpsc::unbounded_channel();
+        let hw_tx_cb = hw_tx.clone();
+        device.set_hw_event_sink(Box::new(move |event| {
+            let _ = hw_tx_cb.send(event);
+        }));
+
         Self {
             device,
             reopen,
@@ -106,6 +132,8 @@ impl Actor {
             config,
             origin: Instant::now(),
             poll_quiet_until: Duration::ZERO,
+            hw_tx,
+            hw_rx,
         }
     }
 
@@ -137,6 +165,13 @@ impl Actor {
                     }
                 }
             }
+            loop {
+                match self.hw_rx.try_recv() {
+                    Ok(hw_event) => self.handle_hw_event(hw_event),
+                    Err(mpsc::error::TryRecvError::Empty) => break,
+                    Err(mpsc::error::TryRecvError::Disconnected) => break,
+                }
+            }
 
             let connected = self.connection_value() == ConnectionState::Connected;
 
@@ -163,12 +198,13 @@ impl Actor {
             match until_due {
                 Some(remaining) if !self.coalescer.is_empty() => {
                     let wait = remaining.min(poll_interval);
-                    match tokio::time::timeout(wait, rx.recv()).await {
-                        Ok(Some(req)) => self.handle(req),
-                        Ok(None) => {
+                    match tokio::time::timeout(wait, next_wake(rx, &mut self.hw_rx)).await {
+                        Ok(WakeSource::Request(Some(req))) => self.handle(req),
+                        Ok(WakeSource::Request(None)) => {
                             self.flush().await;
                             return self.device;
                         }
+                        Ok(WakeSource::HwEvent(hw_event)) => self.handle_hw_event(hw_event),
                         Err(_) => {
                             if self.coalescer.has_due(self.now()) {
                                 if !self.flush().await {
@@ -198,14 +234,15 @@ impl Actor {
                     } else {
                         Duration::from_secs(3600)
                     };
-                    match tokio::time::timeout(wait, rx.recv()).await {
-                        Ok(Some(req)) => self.handle(req),
-                        Ok(None) => {
+                    match tokio::time::timeout(wait, next_wake(rx, &mut self.hw_rx)).await {
+                        Ok(WakeSource::Request(Some(req))) => self.handle(req),
+                        Ok(WakeSource::Request(None)) => {
                             if connected {
                                 self.flush().await;
                             }
                             return self.device;
                         }
+                        Ok(WakeSource::HwEvent(hw_event)) => self.handle_hw_event(hw_event),
                         Err(_) => {
                             if connected {
                                 self.poll_hardware();
@@ -229,6 +266,45 @@ impl Actor {
                 self.poll_hardware();
                 let _ = reply.send(());
             }
+        }
+    }
+
+    /// Procesa un evento reactivo originado en el hardware físico (p. ej. ALSA numid=3 o perilla rotativa).
+    fn handle_hw_event(&mut self, hw_event: DeviceEvent) {
+        if self.connection_value() != ConnectionState::Connected {
+            return;
+        }
+
+        if let Some(op) = hw_event.to_state_op() {
+            match self.store.apply(&[op]) {
+                Ok(Some(event)) => {
+                    for op in &event.ops {
+                        match op {
+                            StateOp::Phantom { ch, on } => {
+                                self.safety.note_applied(
+                                    &DeviceCommand::SetPhantom { ch: *ch, on: *on },
+                                    self.now(),
+                                );
+                            }
+                            StateOp::SmartGain { phase } => {
+                                self.safety.set_smartgain_running(*phase != SmartGainPhase::Idle);
+                            }
+                            _ => {}
+                        }
+                    }
+                    self.sink.emit_state(event);
+                    let _ = self.snapshots.send(self.store.snapshot());
+                }
+                Ok(None) => {
+                    // El valor notificado coincide con el estado actual (eco o idempotente).
+                    // No se avanza la revisión ni se emite ruido.
+                }
+                Err(err) => {
+                    debug!(%err, "error al aplicar evento reactivo de hardware en StateStore");
+                }
+            }
+        } else if let DeviceEvent::ConnectionChanged(conn) = hw_event {
+            self.set_connection(conn);
         }
     }
 
@@ -411,8 +487,12 @@ impl Actor {
         };
 
         match opened {
-            Ok(device) => {
+            Ok(mut device) => {
                 debug!("dispositivo reabierto");
+                let hw_tx_cb = self.hw_tx.clone();
+                device.set_hw_event_sink(Box::new(move |event| {
+                    let _ = hw_tx_cb.send(event);
+                }));
                 self.device = device;
                 self.replay_state();
                 self.set_connection(ConnectionState::Connected);

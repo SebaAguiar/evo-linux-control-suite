@@ -11,12 +11,14 @@ use std::fs::{File, OpenOptions};
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use evo_domain::{
     ConnectionState, DeviceCommand, DeviceError, DeviceEvent, DeviceProfile, DeviceState, ModelId,
     SmartGainPhase,
 };
-use evo_ports::{DeviceId, DriverFactory, EvoDevice};
+use evo_ports::{DeviceId, DriverFactory, EvoDevice, HwEventCallback};
 
 // --- Protocolo de ioctl para /dev/evo4 (evo_raw) ---
 
@@ -113,18 +115,203 @@ pub fn is_evo4_available(card: &str) -> bool {
             .unwrap_or(false)
 }
 
+// --- Protocolo de ioctl para ALSA Control (/dev/snd/controlC*) ---
+const SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS: libc::c_ulong = 0xc0045516;
+const SNDRV_CTL_IOCTL_ELEM_READ: libc::c_ulong = 0xc4c85512;
+const SNDRV_CTL_EVENT_MASK_VALUE: u32 = 0x01;
+const SNDRV_CTL_EVENT_ELEM: i32 = 0;
+
+/// Busca la ruta del dispositivo de control ALSA para una tarjeta dada (ej. "EVO4", "1", "hw:1").
+pub fn find_control_dev_node(card: &str) -> Option<String> {
+    let clean_card = card.strip_prefix("hw:").unwrap_or(card);
+    if clean_card.chars().all(|c| c.is_ascii_digit()) {
+        let p = format!("/dev/snd/controlC{clean_card}");
+        if Path::new(&p).exists() {
+            return Some(p);
+        }
+    }
+    let asound_card = format!("/proc/asound/{clean_card}");
+    if let Ok(target) = std::fs::read_link(&asound_card) {
+        if let Some(target_str) = target.to_str() {
+            if let Some(num) = target_str.strip_prefix("card") {
+                let p = format!("/dev/snd/controlC{num}");
+                if Path::new(&p).exists() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    if let Ok(content) = std::fs::read_to_string("/proc/asound/cards") {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if let Some((idx_str, rest)) = trimmed.split_once('[') {
+                if rest.contains(clean_card) {
+                    if let Ok(idx) = idx_str.trim().parse::<u32>() {
+                        let p = format!("/dev/snd/controlC{idx}");
+                        if Path::new(&p).exists() {
+                            return Some(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if clean_card.starts_with("/dev/snd/controlC") && Path::new(clean_card).exists() {
+        return Some(clean_card.to_string());
+    }
+    None
+}
+
+/// Lee los valores enteros de un control ALSA por su numid de forma instantánea vía ioctl.
+fn alsa_read_numid(fd: libc::c_int, numid: u32) -> std::io::Result<[i64; 2]> {
+    let mut buf = [0u8; 1224];
+    buf[0..4].copy_from_slice(&numid.to_ne_bytes());
+    let ret = unsafe { libc::ioctl(fd, SNDRV_CTL_IOCTL_ELEM_READ, buf.as_mut_ptr()) };
+    if ret < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let val0 = i64::from_ne_bytes(buf[72..80].try_into().unwrap());
+    let val1 = i64::from_ne_bytes(buf[80..88].try_into().unwrap());
+    Ok([val0, val1])
+}
+
+/// Estado compartido entre el actor y el hilo listener reactivo de ALSA.
+#[derive(Debug, Default)]
+pub struct EvoSharedState {
+    pub gain_steps: [u32; 4],
+    pub volume_step: u32,
+    pub mutes: [bool; 2],
+    pub phantom: [bool; 2],
+    pub mix_raw: u8,
+}
+
+/// Hilo en segundo plano que escucha eventos del kernel emitidos en `/dev/snd/controlC*`.
+fn run_alsa_listener(
+    dev_path: String,
+    stop: Arc<AtomicBool>,
+    sink_holder: Arc<Mutex<Option<HwEventCallback>>>,
+    shared: Arc<Mutex<EvoSharedState>>,
+) {
+    let file = match OpenOptions::new().read(true).write(true).open(&dev_path) {
+        Ok(f) => f,
+        Err(e) => {
+            tracing::warn!("No se pudo abrir {dev_path} para suscripción de eventos ALSA: {e}");
+            return;
+        }
+    };
+    let fd = file.as_raw_fd();
+    let mut subscribe: libc::c_int = 1;
+    let ret = unsafe { libc::ioctl(fd, SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS, &mut subscribe) };
+    if ret < 0 {
+        tracing::warn!(
+            "SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS falló en {dev_path}: {}",
+            std::io::Error::last_os_error()
+        );
+        return;
+    }
+    tracing::info!("Listener reactivo de eventos ALSA iniciado en {dev_path}");
+
+    let mut pollfd = libc::pollfd {
+        fd,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+
+    while !stop.load(Ordering::Relaxed) {
+        pollfd.revents = 0;
+        let poll_ret = unsafe { libc::poll(&mut pollfd, 1, 300) };
+        if poll_ret <= 0 {
+            continue;
+        }
+        if (pollfd.revents & libc::POLLIN) == 0 {
+            if (pollfd.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL)) != 0 {
+                tracing::warn!("Descriptor {dev_path} cerrado o desconectado en ALSA listener");
+                break;
+            }
+            continue;
+        }
+
+        let mut event_buf = [0u8; 72];
+        let n = unsafe { libc::read(fd, event_buf.as_mut_ptr() as *mut libc::c_void, 72) };
+        if n != 72 {
+            continue;
+        }
+
+        let event_type = i32::from_ne_bytes(event_buf[0..4].try_into().unwrap());
+        let mask = u32::from_ne_bytes(event_buf[4..8].try_into().unwrap());
+        let numid = u32::from_ne_bytes(event_buf[8..12].try_into().unwrap());
+
+        if event_type == SNDRV_CTL_EVENT_ELEM && (mask & SNDRV_CTL_EVENT_MASK_VALUE) != 0 {
+            if numid == 3 {
+                // Mic Playback Volume (Ganancia canales 1 y 2)
+                if let Ok([val0, val1]) = alsa_read_numid(fd, 3) {
+                    let step0 = (val0.clamp(0, 50)) as u32;
+                    let step1 = (val1.clamp(0, 50)) as u32;
+
+                    let mut changed_events = Vec::new();
+                    {
+                        let mut state = shared.lock().unwrap();
+                        if state.gain_steps[0] != step0 && !state.mutes[0] {
+                            state.gain_steps[0] = step0;
+                            let db = step_to_db(step0);
+                            changed_events.push(DeviceEvent::GainChanged { ch: 0, db });
+                        }
+                        if state.gain_steps[1] != step1 && !state.mutes[1] {
+                            state.gain_steps[1] = step1;
+                            let db = step_to_db(step1);
+                            changed_events.push(DeviceEvent::GainChanged { ch: 1, db });
+                        }
+                    }
+
+                    if !changed_events.is_empty() {
+                        if let Some(sink) = sink_holder.lock().unwrap().as_ref() {
+                            for ev in changed_events {
+                                sink(ev);
+                            }
+                        }
+                    }
+                }
+            } else if numid == 4 {
+                // EVO4 Playback Volume (Volumen general de salida)
+                if let Ok([vol0, _]) = alsa_read_numid(fd, 4) {
+                    let vol_step = (vol0.clamp(0, 254)) as u32;
+                    let mut emit_event = None;
+                    {
+                        let mut state = shared.lock().unwrap();
+                        if state.volume_step != vol_step {
+                            state.volume_step = vol_step;
+                            let vol_db = (vol_step as f32) * 0.5 - 127.0;
+                            let pan = ((state.mix_raw as f32) / 127.0) * 2.0 - 1.0;
+                            emit_event = Some(DeviceEvent::MonitorMixChanged {
+                                out: 0,
+                                level_db: vol_db,
+                                pan,
+                            });
+                        }
+                    }
+                    if let Some(ev) = emit_event {
+                        if let Some(sink) = sink_holder.lock().unwrap().as_ref() {
+                            sink(ev);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    tracing::info!("Listener reactivo de eventos ALSA finalizado en {dev_path}");
+}
+
 /// Dispositivo hardware real Audient EVO 4.
 pub struct Evo4HwDevice {
     card: String,
     profile: DeviceProfile,
-    cached_gain_steps: [u32; 4],
-    cached_mutes: [bool; 2],
-    cached_phantom: [bool; 2],
-    cached_volume_step: u32,
-    cached_mix_raw: u8,
+    shared: Arc<Mutex<EvoSharedState>>,
     loopback: bool,
     smartgain: SmartGainPhase,
     raw_dev: Option<File>,
+    hw_sink: Arc<Mutex<Option<HwEventCallback>>>,
+    listener_stop: Arc<AtomicBool>,
+    listener_thread: Option<std::thread::JoinHandle<()>>,
 }
 
 impl Evo4HwDevice {
@@ -153,49 +340,88 @@ impl Evo4HwDevice {
         let steps = query_mic_volume(card).unwrap_or([0, 0, 0, 0]);
         let volume_step = query_playback_volume(card).unwrap_or(254);
 
-        let mut dev = Self {
+        let shared = Arc::new(Mutex::new(EvoSharedState {
+            gain_steps: steps,
+            volume_step,
+            mutes: [false, false],
+            phantom: [false, false],
+            mix_raw: 64, // 50/50 balance inicial
+        }));
+
+        let dev = Self {
             card: card.to_string(),
             profile: DeviceProfile::evo4(),
-            cached_gain_steps: steps,
-            cached_mutes: [false, false],
-            cached_phantom: [false, false],
-            cached_volume_step: volume_step,
-            cached_mix_raw: 64, // 50/50 balance inicial
+            shared,
             loopback: false,
             smartgain: SmartGainPhase::Idle,
             raw_dev,
+            hw_sink: Arc::new(Mutex::new(None)),
+            listener_stop: Arc::new(AtomicBool::new(false)),
+            listener_thread: None,
         };
 
         // Si tenemos acceso crudo al hardware, leemos el estado físico real
         if let Some(file) = &dev.raw_dev {
+            let mut state = dev.shared.lock().unwrap();
             if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
                 if !data.is_empty() {
-                    dev.cached_phantom[0] = data[0] == 1;
+                    state.phantom[0] = data[0] == 1;
                 }
             }
             if let Ok(data) = evo_raw_get_cur(file, 0x0001, 0x3A00, 4) {
                 if !data.is_empty() {
-                    dev.cached_phantom[1] = data[0] == 1;
+                    state.phantom[1] = data[0] == 1;
                 }
             }
             if let Ok(data) = evo_raw_get_cur(file, 0x0200, 0x3A00, 4) {
                 if !data.is_empty() {
-                    dev.cached_mutes[0] = data[0] == 1;
+                    state.mutes[0] = data[0] == 1;
                 }
             }
             if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
                 if !data.is_empty() {
-                    dev.cached_mutes[1] = data[0] == 1;
+                    state.mutes[1] = data[0] == 1;
                 }
             }
             if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3800, 2) {
                 if !data.is_empty() {
-                    dev.cached_mix_raw = data[0].clamp(0, 127);
+                    state.mix_raw = data[0].clamp(0, 127);
                 }
             }
         }
 
         Ok(Box::new(dev))
+    }
+
+    /// Asegura que el listener reactivo de ALSA esté corriendo en segundo plano.
+    fn ensure_alsa_listener(&mut self) {
+        if self.listener_thread.is_some() {
+            return;
+        }
+
+        let dev_node = match find_control_dev_node(&self.card) {
+            Some(node) => node,
+            None => {
+                tracing::debug!(card = %self.card, "No se encontró nodo /dev/snd/controlC* para suscripción reactiva");
+                return;
+            }
+        };
+
+        let stop = Arc::clone(&self.listener_stop);
+        let sink_holder = Arc::clone(&self.hw_sink);
+        let shared = Arc::clone(&self.shared);
+
+        stop.store(false, Ordering::Relaxed);
+        let handle = std::thread::Builder::new()
+            .name("evo-alsa-listener".to_string())
+            .spawn(move || {
+                run_alsa_listener(dev_node, stop, sink_holder, shared);
+            });
+
+        match handle {
+            Ok(h) => self.listener_thread = Some(h),
+            Err(e) => tracing::error!("No se pudo crear hilo evo-alsa-listener: {e}"),
+        }
     }
 
     /// Asegura que `/dev/evo4` esté abierto si no lo está.
@@ -246,7 +472,12 @@ impl EvoDevice for Evo4HwDevice {
 
         // Si tenemos /dev/evo4, consultamos el estado físico real de volumen, botones y relés directamente
         if let Some(file) = &self.raw_dev {
+            let (mut gains, mut phantoms, mut mutes, mut mix) = {
+                let s = self.shared.lock().unwrap();
+                (s.gain_steps, s.phantom, s.mutes, s.mix_raw)
+            };
             let mut stale = false;
+
             for ch in 0..2 {
                 std::thread::sleep(std::time::Duration::from_millis(3));
                 match evo_raw_get_cur(file, (2 << 8) | ((ch + 1) as u16), 0x0B00, 2) {
@@ -254,7 +485,7 @@ impl EvoDevice for Evo4HwDevice {
                         if data.len() >= 2 {
                             let raw = i16::from_le_bytes([data[0], data[1]]);
                             let db = (raw as f32) / 256.0;
-                            self.cached_gain_steps[ch] = db_to_step(db);
+                            gains[ch] = db_to_step(db);
                         }
                     }
                     Err(e) if is_stale_fd(&e) => {
@@ -273,67 +504,76 @@ impl EvoDevice for Evo4HwDevice {
                 std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3A00, 4) {
                     if !data.is_empty() {
-                        self.cached_phantom[0] = data[0] == 1;
+                        phantoms[0] = data[0] == 1;
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0001, 0x3A00, 4) {
                     if !data.is_empty() {
-                        self.cached_phantom[1] = data[0] == 1;
+                        phantoms[1] = data[0] == 1;
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0200, 0x3A00, 4) {
                     if !data.is_empty() {
-                        self.cached_mutes[0] = data[0] == 1;
+                        mutes[0] = data[0] == 1;
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0201, 0x3A00, 4) {
                     if !data.is_empty() {
-                        self.cached_mutes[1] = data[0] == 1;
+                        mutes[1] = data[0] == 1;
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(3));
                 if let Ok(data) = evo_raw_get_cur(file, 0x0000, 0x3800, 2) {
                     if !data.is_empty() {
-                        self.cached_mix_raw = data[0].clamp(0, 127);
+                        mix = data[0].clamp(0, 127);
                     }
                 }
+
+                let mut s = self.shared.lock().unwrap();
+                s.gain_steps = gains;
+                s.phantom = phantoms;
+                s.mutes = mutes;
+                s.mix_raw = mix;
             }
         } else {
             // Modo fallback ALSA básico: actualizamos pasos de ganancia desde ALSA
             if let Ok(steps) = query_mic_volume(&self.card) {
+                let mut s = self.shared.lock().unwrap();
                 for (ch, &step) in steps.iter().enumerate().take(2) {
-                    if self.cached_mutes[ch] {
+                    if s.mutes[ch] {
                         continue;
                     }
-                    self.cached_gain_steps[ch] = step;
+                    s.gain_steps[ch] = step;
                 }
-                if self.cached_gain_steps.len() > 2 {
-                    self.cached_gain_steps[2] = steps[2];
-                    self.cached_gain_steps[3] = steps[3];
+                if s.gain_steps.len() > 2 {
+                    s.gain_steps[2] = steps[2];
+                    s.gain_steps[3] = steps[3];
                 }
             }
         }
 
         // Actualizamos volumen de salida desde ALSA numid=4
         if let Ok(vol) = query_playback_volume(&self.card) {
-            self.cached_volume_step = vol;
+            let mut s = self.shared.lock().unwrap();
+            s.volume_step = vol;
         }
 
+        let s = self.shared.lock().unwrap();
         let mut state = DeviceState::initial(&self.profile);
-        state.channels[0].gain_db = step_to_db(self.cached_gain_steps[0]);
-        state.channels[1].gain_db = step_to_db(self.cached_gain_steps[1]);
-        state.channels[0].muted = self.cached_mutes[0];
-        state.channels[1].muted = self.cached_mutes[1];
-        state.channels[0].phantom = self.cached_phantom[0];
-        state.channels[1].phantom = self.cached_phantom[1];
+        state.channels[0].gain_db = step_to_db(s.gain_steps[0]);
+        state.channels[1].gain_db = step_to_db(s.gain_steps[1]);
+        state.channels[0].muted = s.mutes[0];
+        state.channels[1].muted = s.mutes[1];
+        state.channels[0].phantom = s.phantom[0];
+        state.channels[1].phantom = s.phantom[1];
         state.loopback = self.loopback;
         state.smartgain = self.smartgain;
 
-        let vol_db = (self.cached_volume_step as f32) * 0.5 - 127.0;
-        let pan = ((self.cached_mix_raw as f32) / 127.0) * 2.0 - 1.0;
+        let vol_db = (s.volume_step as f32) * 0.5 - 127.0;
+        let pan = ((s.mix_raw as f32) / 127.0) * 2.0 - 1.0;
         for mix in &mut state.mixes {
             mix.level_db = vol_db;
             mix.pan = pan;
@@ -350,7 +590,11 @@ impl EvoDevice for Evo4HwDevice {
                     return Err(DeviceError::Rejected(format!("canal {ch} fuera de rango")));
                 }
                 let step = db_to_step(db);
-                self.cached_gain_steps[ch as usize] = step;
+                let (active_steps, mutes) = {
+                    let mut s = self.shared.lock().unwrap();
+                    s.gain_steps[ch as usize] = step;
+                    (s.gain_steps, s.mutes)
+                };
 
                 // Si tenemos /dev/evo4 escribimos directo al Feature Unit 11 CS=2
                 if let Some(file) = &self.raw_dev {
@@ -365,17 +609,17 @@ impl EvoDevice for Evo4HwDevice {
                             self.raw_dev = None;
                         }
                     }
-                    let _ = write_mic_volume(&self.card, &self.cached_gain_steps);
+                    let _ = write_mic_volume(&self.card, &active_steps);
                 } else {
                     // En modo ALSA básico, si está muteado mantenemos 0 en el control ALSA
-                    let mut active_steps = self.cached_gain_steps;
-                    if self.cached_mutes[0] {
-                        active_steps[0] = 0;
+                    let mut steps = active_steps;
+                    if mutes[0] {
+                        steps[0] = 0;
                     }
-                    if self.cached_mutes[1] {
-                        active_steps[1] = 0;
+                    if mutes[1] {
+                        steps[1] = 0;
                     }
-                    let _ = write_mic_volume(&self.card, &active_steps);
+                    let _ = write_mic_volume(&self.card, &steps);
                 }
 
                 Ok(vec![DeviceEvent::GainChanged { ch, db }])
@@ -385,7 +629,11 @@ impl EvoDevice for Evo4HwDevice {
                 if ch as usize >= 2 {
                     return Err(DeviceError::Rejected(format!("canal {ch} fuera de rango")));
                 }
-                self.cached_mutes[ch as usize] = on;
+                let (active_steps, mutes) = {
+                    let mut s = self.shared.lock().unwrap();
+                    s.mutes[ch as usize] = on;
+                    (s.gain_steps, s.mutes)
+                };
 
                 // Si tenemos /dev/evo4, activamos el mute nativo por hardware en EU58 CS=2.
                 // Esto hace que el hardware silencie la entrada y el LED del botón del canal parpadee.
@@ -400,14 +648,14 @@ impl EvoDevice for Evo4HwDevice {
                     std::thread::sleep(std::time::Duration::from_millis(15));
                 } else {
                     // Fallback en modo ALSA básico: simular mute bajando el paso a 0
-                    let mut active_steps = self.cached_gain_steps;
-                    if self.cached_mutes[0] {
-                        active_steps[0] = 0;
+                    let mut steps = active_steps;
+                    if mutes[0] {
+                        steps[0] = 0;
                     }
-                    if self.cached_mutes[1] {
-                        active_steps[1] = 0;
+                    if mutes[1] {
+                        steps[1] = 0;
                     }
-                    let _ = write_mic_volume(&self.card, &active_steps);
+                    let _ = write_mic_volume(&self.card, &steps);
                 }
 
                 Ok(vec![DeviceEvent::MuteChanged { ch, on }])
@@ -432,7 +680,10 @@ impl EvoDevice for Evo4HwDevice {
                     // Breve pausa para estabilizar los contactos mecánicos del relé
                     // y el convertidor elevador DC-DC antes de reanudar el tráfico USB.
                     std::thread::sleep(std::time::Duration::from_millis(150));
-                    self.cached_phantom[ch as usize] = on;
+                    {
+                        let mut s = self.shared.lock().unwrap();
+                        s.phantom[ch as usize] = on;
+                    }
                     Ok(vec![DeviceEvent::PhantomChanged { ch, on }])
                 } else {
                     tracing::warn!(
@@ -462,13 +713,19 @@ impl EvoDevice for Evo4HwDevice {
             DeviceCommand::SetMonitorMix { out, level_db, pan } => {
                 // 1. Control de volumen general de salida (ALSA numid=4 'EVO4 Playback Volume', 0 a 254 pasos)
                 let step = (((level_db + 127.0) / 0.5).round() as i32).clamp(0, 254) as u32;
-                self.cached_volume_step = step;
+                {
+                    let mut s = self.shared.lock().unwrap();
+                    s.volume_step = step;
+                }
                 let _ = write_playback_volume(&self.card, step);
 
                 // 2. Mix entre PC y placa (Extension Unit 56 CS=0 en /dev/evo4):
                 // pan en [-1.0, 1.0] -> 0 = 100% entrada/placa, 127 = 100% PC/DAW, 64 = 50/50 balance
                 let raw_mix = (((pan + 1.0) / 2.0) * 127.0).round().clamp(0.0, 127.0) as u8;
-                self.cached_mix_raw = raw_mix;
+                {
+                    let mut s = self.shared.lock().unwrap();
+                    s.mix_raw = raw_mix;
+                }
 
                 if let Some(file) = &self.raw_dev {
                     if let Err(e) = evo_raw_set_cur(file, 0x0000, 0x3800, &[raw_mix, 0]) {
@@ -482,12 +739,6 @@ impl EvoDevice for Evo4HwDevice {
             }
 
             DeviceCommand::TriggerSmartGain | DeviceCommand::CancelSmartGain => {
-                // En Audient EVO 4, el proceso de SmartGain se ejecuta por hardware
-                // en el microcontrolador de la interfaz mediante la secuencia física de botones:
-                // 1) Pulsar botón verde SmartGain (los botones 1 y 2 parpadean).
-                // 2) Tocar canal 1 o 2 para seleccionarlo.
-                // 3) Pulsar SmartGain de nuevo para iniciar la calibración.
-                // Al finalizar, la ganancia calibrada en FU11 es leída automáticamente por el daemon.
                 self.smartgain = SmartGainPhase::Idle;
                 Ok(vec![DeviceEvent::SmartGainChanged {
                     phase: SmartGainPhase::Idle,
@@ -496,6 +747,26 @@ impl EvoDevice for Evo4HwDevice {
 
             other => Err(DeviceError::Unsupported(other.op_name())),
         }
+    }
+
+    fn set_hw_event_sink(&mut self, sink: HwEventCallback) {
+        *self.hw_sink.lock().unwrap() = Some(sink);
+        self.ensure_alsa_listener();
+    }
+
+    fn close(&mut self) -> Result<(), DeviceError> {
+        self.listener_stop.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.listener_thread.take() {
+            let _ = handle.join();
+        }
+        self.raw_dev = None;
+        Ok(())
+    }
+}
+
+impl Drop for Evo4HwDevice {
+    fn drop(&mut self) {
+        let _ = self.close();
     }
 }
 
@@ -633,3 +904,48 @@ impl DriverFactory for Evo4AlsaDriverFactory {
         Evo4HwDevice::open(&self.card)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_db_step_conversion() {
+        assert_eq!(db_to_step(-8.0), 0);
+        assert_eq!(db_to_step(0.0), 16);
+        assert_eq!(db_to_step(50.0), 116);
+        assert_eq!(db_to_step(-20.0), 0); // clamp min
+        assert_eq!(db_to_step(100.0), 116); // clamp max
+
+        assert!((step_to_db(0) - (-8.0)).abs() < 1e-4);
+        assert!((step_to_db(16) - 0.0).abs() < 1e-4);
+        assert!((step_to_db(116) - 50.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn test_find_control_dev_node() {
+        assert!(find_control_dev_node("non_existent_card_xyz123").is_none());
+        // Numeric card index resolution if card 0 exists
+        if Path::new("/dev/snd/controlC0").exists() {
+            assert_eq!(
+                find_control_dev_node("0"),
+                Some("/dev/snd/controlC0".to_string())
+            );
+            assert_eq!(
+                find_control_dev_node("hw:0"),
+                Some("/dev/snd/controlC0".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn test_evo_shared_state_default() {
+        let state = EvoSharedState::default();
+        assert_eq!(state.gain_steps, [0, 0, 0, 0]);
+        assert_eq!(state.volume_step, 0);
+        assert_eq!(state.mutes, [false, false]);
+        assert_eq!(state.phantom, [false, false]);
+        assert_eq!(state.mix_raw, 0);
+    }
+}
+

@@ -10,8 +10,8 @@ use std::time::Duration;
 use evo_core::{Coalescer, CoreConfig, CoreError, EvoCore, ReconnectPolicy, StateStore};
 use evo_domain::ModelId;
 use evo_domain::{
-    CommandRejection, ConnectionState, DeviceCommand, DeviceProfile, DeviceState, SafetyError,
-    SmartGainPhase, StateSnapshot,
+    CommandRejection, ConnectionState, DeviceCommand, DeviceEvent, DeviceProfile, DeviceState,
+    SafetyError, SmartGainPhase, StateSnapshot,
 };
 use evo_mock::{Fault, MockDevice};
 use tokio::sync::watch;
@@ -669,3 +669,75 @@ fn el_store_reemplaza_estado_solo_cuando_difiere() {
     assert_eq!(store.replace(other), None, "sin cambio, sin revisión");
     assert_eq!(store.rev(), 1);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn los_eventos_reactivos_de_hardware_actualizan_el_store_inmediatamente() {
+    let device = MockDevice::new(ModelId::Evo4);
+    let trigger = device.hw_trigger();
+    let core = EvoCore::spawn(Box::new(device), CoreConfig::default());
+    let mut snapshots = core.subscribe_snapshots();
+    let mut deltas = core.subscribe_state();
+
+    // Simulamos un giro físico de perilla en el hardware (ganancia canal 0 sube a 36.5 dB)
+    {
+        let sink_guard = trigger.lock().expect("mutex");
+        let sink = sink_guard.as_ref().expect("sink registrado por el actor");
+        sink(DeviceEvent::GainChanged { ch: 0, db: 36.5 });
+    }
+
+    // El actor debe procesar el evento de inmediato sin polling ni comandos de software
+    let snapshot = wait_for(&mut snapshots, "ganancia física actualizada", |s| {
+        (s.state.channels[0].gain_db - 36.5).abs() < f32::EPSILON
+    })
+    .await;
+
+    assert_eq!(snapshot.rev, 1);
+    assert_eq!(snapshot.state.channels[0].gain_db, 36.5);
+
+    // Verificamos que se emitió el delta por el bus hacia la UI
+    let delta = tokio::time::timeout(Duration::from_millis(500), deltas.recv())
+        .await
+        .expect("delta recibido a tiempo")
+        .expect("canal abierto");
+    assert_eq!(delta.rev, 1);
+    assert_eq!(
+        delta.ops,
+        vec![evo_domain::StateOp::Gain { ch: 0, db: 36.5 }]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn los_eventos_reactivos_idempotentes_o_ecos_no_generan_deltas_duplicados() {
+    let device = MockDevice::new(ModelId::Evo4);
+    let trigger = device.hw_trigger();
+    let core = EvoCore::spawn(Box::new(device), CoreConfig::default());
+    let mut snapshots = core.subscribe_snapshots();
+    let mut deltas = core.subscribe_state();
+
+    // 1) Disparamos evento físico
+    {
+        let sink_guard = trigger.lock().expect("mutex");
+        let sink = sink_guard.as_ref().expect("sink registrado");
+        sink(DeviceEvent::GainChanged { ch: 1, db: 22.0 });
+    }
+
+    wait_for(&mut snapshots, "ganancia canal 1 en 22.0", |s| {
+        (s.state.channels[1].gain_db - 22.0).abs() < f32::EPSILON
+    })
+    .await;
+    let _ = deltas.recv().await;
+
+    // 2) Disparamos exactamente el mismo valor de nuevo (eco de ALSA)
+    {
+        let sink_guard = trigger.lock().expect("mutex");
+        let sink = sink_guard.as_ref().expect("sink registrado");
+        sink(DeviceEvent::GainChanged { ch: 1, db: 22.0 });
+    }
+
+    // No debe emitirse ningún nuevo delta (supresión de eco)
+    let timed_out = tokio::time::timeout(Duration::from_millis(100), deltas.recv()).await;
+    assert!(timed_out.is_err(), "no debe emitirse delta redundante ante un eco");
+
+    assert_eq!(core.snapshot().rev, 1);
+}
+
