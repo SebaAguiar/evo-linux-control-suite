@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 240" width="1000" height="240" role="img" aria-label="EVO Linux Control Suite">
+  <title>EVO Linux Control Suite</title>
+  <g transform="translate(40,40) scale(0.3125)">
+    <rect width="512" height="512" rx="112" fill="#111827"/>
+    <circle cx="370.6" cy="214.3" r="13" fill="#F9FAFB"/>
+    <circle cx="353.4" cy="182.5" r="13" fill="#F9FAFB"/>
+    <circle cx="327.5" cy="157.1" r="13" fill="#F9FAFB"/>
+    <circle cx="295.3" cy="140.5" r="13" fill="#F9FAFB"/>
+    <circle cx="259.7" cy="134.1" r="13" fill="#F9FAFB"/>
+    <circle cx="223.8" cy="138.3" r="13" fill="#F9FAFB"/>
+    <circle cx="190.7" cy="153.0" r="13" fill="#F9FAFB"/>
+    <circle cx="163.3" cy="176.7" r="13" fill="#F9FAFB"/>
+    <circle cx="144.1" cy="207.4" r="13" fill="#F9FAFB"/>
+    <circle cx="134.8" cy="242.3" r="13" fill="#F9FAFB"/>
+    <circle cx="136.1" cy="278.5" r="13" fill="#F9FAFB"/>
+    <circle cx="148.0" cy="312.7" r="13" fill="#F9FAFB"/>
+    <circle cx="169.4" cy="341.9" r="13" fill="#F9FAFB"/>
+    <circle cx="198.4" cy="363.5" r="13" fill="#F9FAFB"/>
+    <circle cx="232.5" cy="375.7" r="13" fill="#F9FAFB"/>
+    <circle cx="268.6" cy="377.3" r="13" fill="#F9FAFB"/>
+    <circle cx="303.7" cy="368.3" r="13" fill="#F9FAFB"/>
+    <rect x="162" y="228" width="244" height="56" fill="#818CF8"/>
+  </g>
+  <text x="236" y="137" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="46" letter-spacing="2"><tspan fill="#F9FAFB" font-weight="600">EVO</tspan><tspan dx="20" fill="#9CA3AF" font-weight="500">LINUX CONTROL SUITE</tspan></text>
+</svg>

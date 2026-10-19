@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 240" width="1000" height="240" role="img" aria-label="EVO Linux Control Suite">
+  <title>EVO Linux Control Suite</title>
+  <g transform="translate(40,40) scale(0.3125)">
+    <rect width="512" height="512" rx="112" fill="#111827"/>
+    <path d="M317 361.7 A122 122 0 1 1 378 256" fill="none" stroke="#F9FAFB" stroke-width="56"/>
+    <rect x="162" y="228" width="244" height="56" fill="#818CF8"/>
+  </g>
+  <text x="236" y="137" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="46" letter-spacing="2"><tspan fill="#F9FAFB" font-weight="600">EVO</tspan><tspan dx="20" fill="#9CA3AF" font-weight="500">LINUX CONTROL SUITE</tspan></text>
+</svg>

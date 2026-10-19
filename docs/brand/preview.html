@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>EVO Linux Control Suite — Brand Preview</title>
+<style>
+  :root {
+    --background: #111827;
+    --surface: #1F2937;
+    --text-primary: #F9FAFB;
+    --text-muted: #9CA3AF;
+    --accent: #818CF8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+    background: var(--background);
+    color: var(--text-primary);
+  }
+  section { padding: 48px 56px; }
+  h2 { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 28px; }
+  .dark { background: var(--background); }
+  .light { background: #F9FAFB; color: #111827; }
+  .light h2 { color: #6B7280; }
+  .row { display: flex; flex-wrap: wrap; gap: 40px; align-items: center; }
+  .card {
+    background: var(--surface);
+    border: 1px solid #374151;
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card.on-light { background: #fff; border-color: #E5E7EB; }
+  .ladder { display: flex; align-items: flex-end; gap: 24px; }
+  .ladder figure { margin: 0; text-align: center; }
+  .ladder figcaption { margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+  .swatches { display: flex; gap: 16px; margin-top: 8px; }
+  .swatch { width: 132px; border-radius: 12px; overflow: hidden; border: 1px solid #374151; font-size: 11px; }
+  .swatch .chip { height: 64px; }
+  .swatch .meta { padding: 10px 12px; background: var(--surface); }
+  .swatch .meta strong { display: block; font-size: 12px; }
+  .swatch .meta span { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<section class="dark">
+  <h2>Lockup horizontal</h2>
+  <div class="row">
+    <div class="card" style="width: 720px;">
+      <img src="evolinux-lockup-horizontal.svg" alt="EVO Linux Control Suite — horizontal" width="600"/>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <h2>Lockup stacked (como el lockup EVO / AUDIENT)</h2>
+  <div class="row">
+    <div class="card" style="width: 420px;">
+      <img src="evolinux-lockup-stacked.svg" alt="evo — Linux Control Suite" width="340"/>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <h2>Icono — tema oscuro</h2>
+  <div class="row">
+    <div class="ladder">
+      <figure><img src="evolinux-icon.svg" width="256" alt=""/><figcaption>256 px</figcaption></figure>
+      <figure><img src="evolinux-icon.svg" width="128" alt=""/><figcaption>128 px</figcaption></figure>
+      <figure><img src="evolinux-icon.svg" width="64" alt=""/><figcaption>64 px</figcaption></figure>
+      <figure><img src="evolinux-icon.svg" width="32" alt=""/><figcaption>32 px</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="light">
+  <h2>Icono — tema claro</h2>
+  <div class="row">
+    <div class="ladder">
+      <figure><img src="evolinux-icon-light.svg" width="256" alt=""/><figcaption>256 px</figcaption></figure>
+      <figure><img src="evolinux-icon-light.svg" width="128" alt=""/><figcaption>128 px</figcaption></figure>
+      <figure><img src="evolinux-icon-light.svg" width="64" alt=""/><figcaption>64 px</figcaption></figure>
+      <figure><img src="evolinux-icon-light.svg" width="32" alt=""/><figcaption>32 px</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <h2>Paleta</h2>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background:#111827"></div><div class="meta"><strong>--background</strong><span>#111827</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#1F2937"></div><div class="meta"><strong>--surface</strong><span>#1F2937</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#F9FAFB"></div><div class="meta"><strong>--text-primary</strong><span>#F9FAFB</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#9CA3AF"></div><div class="meta"><strong>--text-muted</strong><span>#9CA3AF</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#818CF8"></div><div class="meta"><strong>--accent</strong><span>#818CF8</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#A5B4FC"></div><div class="meta"><strong>--accent-hover</strong><span>#A5B4FC</span></div></div>
+  </div>
+</section>
+
+</body>
+</html>

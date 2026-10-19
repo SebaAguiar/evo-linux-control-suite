@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" width="640" height="240" role="img" aria-label="EVO Linux Control Suite">
+  <title>EVO Linux Control Suite</title>
+  <!-- Icono -->
+  <g transform="translate(40,40) scale(0.3125)">
+    <rect width="512" height="512" rx="112" fill="#111827"/>
+    <rect x="124" y="236" width="264" height="40" fill="#818CF8"/>
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#F9FAFB" stroke-width="40"/>
+    <rect x="242" y="84" width="28" height="44" fill="#111827"/>
+  </g>
+  <!-- Wordmark "evo" -->
+  <g transform="translate(240,53)" fill="none" stroke="#F9FAFB" stroke-width="15" stroke-linecap="butt" stroke-linejoin="miter">
+    <path d="M71.25 86.8 A42.5 42.5 0 1 1 92.5 50"/>
+    <path d="M15 50 H100"/>
+    <path d="M125.5 0 L168 85 L210.5 0"/>
+    <circle cx="286" cy="50" r="42.5"/>
+  </g>
+  <text x="240" y="187" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="6" fill="#9CA3AF">LINUX CONTROL SUITE</text>
+</svg>

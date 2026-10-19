@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 180" width="520" height="180" role="img" aria-label="evo — Linux Control Suite">
+  <title>evo — Linux Control Suite</title>
+  <!-- Wordmark logotípico "evo": monolineal geométrico (e con apertura, v de vértice, o circular) -->
+  <g transform="translate(92,20)" fill="none" stroke="#F9FAFB" stroke-width="15" stroke-linecap="butt" stroke-linejoin="miter">
+    <!-- e -->
+    <path d="M71.25 86.8 A42.5 42.5 0 1 1 92.5 50"/>
+    <path d="M15 50 H100"/>
+    <!-- v -->
+    <path d="M125.5 0 L168 85 L210.5 0"/>
+    <!-- o -->
+    <circle cx="286" cy="50" r="42.5"/>
+  </g>
+  <!-- Descriptor en versalitas espaciadas, como en el lockup de EVO/AUDIENT -->
+  <text x="263" y="158" text-anchor="middle" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="6" fill="#9CA3AF">LINUX CONTROL SUITE</text>
+</svg>

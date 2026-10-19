@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="EVO Linux Control Suite">
+  <title>EVO Linux Control Suite</title>
+  <rect width="512" height="512" rx="112" fill="#111827"/>
+  <!-- Monograma "e": anillo con apertura de 60° (la e geométrica del estilo evo) -->
+  <path d="M317 361.7 A122 122 0 1 1 378 256" fill="none" stroke="#F9FAFB" stroke-width="56"/>
+  <!-- crossbar de la "e" = señal/acento -->
+  <rect x="162" y="228" width="244" height="56" fill="#818CF8"/>
+</svg>

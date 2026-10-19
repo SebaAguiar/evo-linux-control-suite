@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="EVO Linux Control Suite">
+  <title>EVO Linux Control Suite</title>
+  <!-- Tile (esquina del degradado de superficie del tema oscuro) -->
+  <rect width="512" height="512" rx="112" fill="#111827"/>
+  <!-- Crossbar de la "e" = nivel/acento de marca -->
+  <rect x="124" y="236" width="264" height="40" fill="#818CF8"/>
+  <!-- Anillo: la "e" de EVO + dial/LED ring del hardware -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#F9FAFB" stroke-width="40"/>
+  <!-- Muesca superior: marcador de posición del dial -->
+  <rect x="242" y="84" width="28" height="44" fill="#111827"/>
+</svg>
