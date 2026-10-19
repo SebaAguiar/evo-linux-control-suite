@@ -50,6 +50,7 @@ const year = new Date().getFullYear();
                 <a href="#caracteristicas">Características</a
                 ><a href="#control-remoto">Control remoto</a
                 ><a href="#compatibilidad">Compatibilidad</a
+                ><a href="#changelog">Novedades</a
                 ><a href="#instalacion">Instalación</a><a href="#faq">FAQ</a>
               </nav>
               <div class="nav-actions">
@@ -100,8 +101,7 @@ const year = new Date().getFullYear();
                 <div class="hero-grid"></div>
                 <div class="hero-copy reveal visible">
                   <div class="release-badge">
-                    <span>v1.0.0 estable</span><i></i> Compatible con PipeWire y
-                    JACK
+                    <span>Versión actual: v1.0.0</span><i></i> Lanzamiento estable · Compatible con PipeWire, ALSA y JACK
                   </div>
                   <h1>
                     El control total de tu Audient EVO, <em>ahora en Linux.</em>
@@ -719,7 +719,7 @@ const year = new Date().getFullYear();
                   </div>
                   <div class="device-grid">
                     <article class="device-card reveal">
-                      <div class="device-badge tested"><i></i>Probado</div>
+                      <div class="device-badge tested"><i></i>Probado (v1.0.0)</div>
                       <div class="device-art">
                         <div class="device-face">
                           <div class="device-inputs"><i></i><i></i></div>
@@ -730,7 +730,7 @@ const year = new Date().getFullYear();
                       <h3>Audient EVO 4</h3>
                       <p>
                         2 entradas combinadas, 2 salidas, Smartgain y phantom
-                        independiente.
+                        independiente. Soporte nativo y probado en v1.0.0.
                       </p>
                       <a
                         href="https://github.com/SebaAguiar/evo-linux-control-suite"
@@ -752,7 +752,7 @@ const year = new Date().getFullYear();
                       ></a>
                     </article>
                     <article class="device-card reveal">
-                      <div class="device-badge progress"><i></i>En desarrollo</div>
+                      <div class="device-badge pending"><i></i>Pendiente</div>
                       <div class="device-art">
                         <div class="device-face">
                           <div class="device-inputs">
@@ -764,12 +764,11 @@ const year = new Date().getFullYear();
                       </div>
                       <h3>Audient EVO 8</h3>
                       <p>
-                        Arquitectura preparada para 4 preamps y doble salida de
-                        auriculares.
+                        Planificado para próximas fases. Actualmente nuestro desarrollo y validación están enfocados en consolidar el EVO 4.
                       </p>
                       <a
-                        href="https://github.com/SebaAguiar/evo-linux-control-suite"
-                        >Ver detalles
+                        href="https://github.com/SebaAguiar/evo-linux-control-suite/issues"
+                        >Ver roadmap
                         <svg
                           aria-hidden="true"
                           class="icon"
@@ -787,9 +786,7 @@ const year = new Date().getFullYear();
                       ></a>
                     </article>
                     <article class="device-card reveal">
-                      <div class="device-badge early">
-                        <i></i>Soporte preliminar
-                      </div>
+                      <div class="device-badge pending"><i></i>Pendiente</div>
                       <div class="device-art">
                         <div class="device-face">
                           <div class="device-inputs">
@@ -800,10 +797,12 @@ const year = new Date().getFullYear();
                         </div>
                       </div>
                       <h3>Audient EVO 16</h3>
-                      <p>Preamps multicanal y mapeo de E/S óptica.</p>
+                      <p>
+                        Planificado para futuras etapas. Mapeo multicanal y puertos ADAT ópticos pendientes de desarrollo e instrumental de prueba.
+                      </p>
                       <a
-                        href="https://github.com/SebaAguiar/evo-linux-control-suite"
-                        >Ver detalles
+                        href="https://github.com/SebaAguiar/evo-linux-control-suite/issues"
+                        >Ver roadmap
                         <svg
                           aria-hidden="true"
                           class="icon"
@@ -828,8 +827,8 @@ const year = new Date().getFullYear();
                   </div>
                   <p class="hardware-note">
                     ¿Tienes un EVO 8 o 16?
-                    <a href="https://github.com/SebaAguiar/evo-linux-control-suite"
-                      >Ayúdanos a probarlo en GitHub
+                    <a href="https://github.com/SebaAguiar/evo-linux-control-suite/issues"
+                      >Sigue el avance del roadmap o colabora en GitHub
                       <svg
                         aria-hidden="true"
                         class="icon"
@@ -846,6 +845,120 @@ const year = new Date().getFullYear();
                         <path d="m13 6 6 6-6 6"></path></svg
                     ></a>
                   </p>
+                </div>
+              </section>
+              <section class="section changelog-section" id="changelog">
+                <div class="container changelog-wrapper">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">NOVEDADES & VERSIONES</span>
+                    <h2>Historial y funcionalidades</h2>
+                    <p>Registro en vivo de características, mejoras y evolución de la suite.</p>
+                  </div>
+                  <div class="changelog-card reveal">
+                    <div class="changelog-header">
+                      <div class="changelog-title-group">
+                        <span class="version-badge"><i></i>v1.0.0</span>
+                        <span class="release-status-tag">Versión Actual Estable</span>
+                        <span class="changelog-date">
+                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+                            <line x1="16" x2="16" y1="2" y2="6"></line>
+                            <line x1="8" x2="8" y1="2" y2="6"></line>
+                            <line x1="3" x2="21" y1="10" y2="10"></line>
+                          </svg>
+                          Octubre 2026
+                        </span>
+                      </div>
+                      <div class="changelog-meta-actions">
+                        <a
+                          class="changelog-release-link"
+                          href="https://github.com/SebaAguiar/evo-linux-control-suite/releases/tag/v1.0.0"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 22v-3.9c.04-1-.35-1.96-1-2.6 3.28-.36 6.72-1.61 6.72-7.25A5.67 5.67 0 0 0 19.22 4.3 5.3 5.3 0 0 0 19.08.4S17.9.02 15 1.9a13.4 13.4 0 0 0-7 0C5.1.02 3.92.4 3.92.4a5.3 5.3 0 0 0-.14 3.9 5.67 5.67 0 0 0-1.5 3.95c0 5.63 3.44 6.88 6.72 7.25a3.4 3.4 0 0 0-1 2.6V22"></path>
+                          </svg>
+                          Release en GitHub
+                        </a>
+                      </div>
+                    </div>
+                    <div class="changelog-grid">
+                      <div class="changelog-group">
+                        <h4>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="m12 3 0 9 6 3"></path>
+                          </svg>
+                          Control Analógico de Hardware (EVO 4)
+                        </h4>
+                        <ul class="changelog-list">
+                          <li><strong>Ganancia analógica:</strong> Ajuste preciso de preamplificadores de 0 dB a 58 dB con pasos de 0.5 dB y 2.0 dB.</li>
+                          <li><strong>Phantom Power +48V:</strong> Activación segura e independiente por canal con protección de conmutación de relés.</li>
+                          <li><strong>Mute físico y digital:</strong> Silenciado instantáneo de entradas con retroalimentación visual en vivo.</li>
+                          <li><strong>Monitor Mix Pan:</strong> Balance y mezcla de monitoreo directo entre entrada física y retorno del sistema.</li>
+                          <li><strong>Salida general:</strong> Control de volumen master de auriculares y monitores de estudio.</li>
+                        </ul>
+                      </div>
+                      <div class="changelog-group">
+                        <h4>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect>
+                            <path d="M12 18h.01"></path>
+                          </svg>
+                          Control Remoto Web Móvil
+                        </h4>
+                        <ul class="changelog-list">
+                          <li><strong>Sin instalar aplicaciones:</strong> Funciona directamente en cualquier navegador moderno (iOS, Android).</li>
+                          <li><strong>Sincronización WebSocket:</strong> Conexión bidireccional en tiempo real con latencia despreciable.</li>
+                          <li><strong>Emparejamiento QR instantáneo:</strong> Escanea el código en pantalla desde el teléfono para conectarte al vuelo.</li>
+                          <li><strong>Seguridad de red privada:</strong> Validación de orígenes locales bajo RFC 1918 para evitar accesos indebidos en tu red.</li>
+                        </ul>
+                      </div>
+                      <div class="changelog-group">
+                        <h4>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="m4.93 4.93 4.24 4.24"></path>
+                            <path d="m14.83 9.17 4.24-4.24"></path>
+                            <path d="m14.83 14.83 4.24 4.24"></path>
+                            <path d="m9.17 14.83-4.24 4.24"></path>
+                          </svg>
+                          Motor Nativo & Arquitectura Linux
+                        </h4>
+                        <ul class="changelog-list">
+                          <li><strong>evo-daemon en Rust:</strong> Núcleo de bajo nivel con consumo inferior a 4 MB de RAM y 0% de CPU en reposo.</li>
+                          <li><strong>evo-desktop con Tauri v2:</strong> Interfaz gráfica nativa, reactiva y ligera sin la sobrecarga de Electron.</li>
+                          <li><strong>Compatibilidad de audio:</strong> Funciona armónicamente junto a PipeWire, PulseAudio y JACK.</li>
+                          <li><strong>Servicio systemd:</strong> Integración como servicio de usuario para arranque limpio y desatendido.</li>
+                        </ul>
+                      </div>
+                      <div class="changelog-group">
+                        <h4>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+                          </svg>
+                          Diseño & Personalización de Estudio
+                        </h4>
+                        <ul class="changelog-list">
+                          <li><strong>Arsian Dark (Predeterminado):</strong> Paleta oscura de alta legibilidad, diseñada para sesiones de estudio prolongadas.</li>
+                          <li><strong>Audient EVO (Opcional):</strong> Conmutador de tema para volver a la estética clásica oficial de hardware EVO.</li>
+                          <li><strong>Persistencia de configuración:</strong> Recuerda el tema seleccionado y los parámetros de conexión entre reinicios.</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="changelog-footer">
+                      <span>¿Quieres ver el código fuente y las notas completas del release?</span>
+                      <a href="https://github.com/SebaAguiar/evo-linux-control-suite/releases" target="_blank" rel="noopener noreferrer">
+                        Explorar todos los releases en GitHub
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M5 12h14"></path>
+                          <path d="m12 5 7 7-7 7"></path>
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </section>
               <section class="section install-section" id="instalacion">
