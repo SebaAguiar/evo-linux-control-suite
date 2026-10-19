@@ -11,12 +11,12 @@ resolver = "3"
 members = ["crates/*", "apps/desktop/src-tauri"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 authors = ["David Sebastián Aguiar"]
-repository = "https://github.com/arsian/evo-linux-control-suite"
+repository = "https://github.com/SebaAguiar/evo-linux-control-suite"
 
 [workspace.dependencies]
 # Crates internos
