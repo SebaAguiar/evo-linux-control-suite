@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability Report
+    url: https://github.com/SebaAguiar/evo-linux-control-suite/security/advisories/new
+    about: Report sensitive vulnerabilities privately following SECURITY.md.
+  - name: Questions & Community Discussions
+    url: https://github.com/SebaAguiar/evo-linux-control-suite/discussions
+    about: Ask usage questions, share audio setups, or discuss hardware support.

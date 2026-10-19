@@ -1,0 +1,74 @@
+name: Bug report
+description: Report an issue, glitch, or unexpected behavior with EVO Linux Control Suite
+title: '[bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please search existing issues first.
+        For sensitive security vulnerabilities, please use our [private security advisory](https://github.com/SebaAguiar/evo-linux-control-suite/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: When I change the volume knob on the hardware / desktop app...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      description: Describe what should have happened.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect Audient EVO 4 via USB
+        2. Run `evo start` / launch desktop app
+        3. Turn physical dial or change gain in UI
+        4. See error or unexpected behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Audio Hardware Model
+      options:
+        - Audient EVO 4
+        - Audient EVO 8
+        - Audient EVO 16
+        - Other / Unsure
+    validations:
+      required: true
+  - type: input
+    id: os-kernel
+    attributes:
+      label: Linux Distribution & Kernel
+      placeholder: e.g. Ubuntu 24.04 LTS / Kernel 6.8.0-generic, Arch Linux 6.11
+    validations:
+      required: true
+  - type: dropdown
+    id: audio-server
+    attributes:
+      label: Audio Server
+      options:
+        - PipeWire (wireplumber / pipewire-pulse)
+        - PulseAudio
+        - Pure ALSA
+        - JACK
+        - Other / Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Daemon Logs & Diagnostic Output
+      description: Run `evo logs -n 50` or `journalctl --user -u evo-daemon -n 50 --no-pager` and paste the output here.
+      placeholder: Paste terminal logs here...
+    validations:
+      required: false
