@@ -15,6 +15,8 @@ use evo_ports::MeterSource;
 
 /// Detecta el nombre de nodo de entrada en PipeWire/PulseAudio correspondiente a la EVO.
 pub fn detect_evo_node() -> Option<String> {
+    let mut candidates = Vec::new();
+
     // 1. Intentar con pw-cli
     if let Ok(output) = Command::new("pw-cli")
         .args(["list-objects", "Node"])
@@ -32,7 +34,7 @@ pub fn detect_evo_node() -> Option<String> {
                     if (lower.contains("evo4") || lower.contains("audient"))
                         && (lower.contains("input") || lower.contains("source"))
                     {
-                        return Some(name.to_string());
+                        candidates.push(name.to_string());
                     }
                 }
             }
@@ -40,26 +42,39 @@ pub fn detect_evo_node() -> Option<String> {
     }
 
     // 2. Intentar con pactl
-    if let Ok(output) = Command::new("pactl")
-        .args(["list", "sources", "short"])
-        .output()
-    {
-        if output.status.success() {
-            let out = String::from_utf8_lossy(&output.stdout);
-            for line in out.lines() {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    let name = parts[1];
-                    let lower = name.to_lowercase();
-                    if lower.contains("evo4") || lower.contains("audient") {
-                        return Some(name.to_string());
+    if candidates.is_empty() {
+        if let Ok(output) = Command::new("pactl")
+            .args(["list", "sources", "short"])
+            .output()
+        {
+            if output.status.success() {
+                let out = String::from_utf8_lossy(&output.stdout);
+                for line in out.lines() {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        let name = parts[1];
+                        let lower = name.to_lowercase();
+                        if lower.contains("evo4") || lower.contains("audient") {
+                            candidates.push(name.to_string());
+                        }
                     }
                 }
             }
         }
     }
 
-    None
+    // Prioridad 1: Nodo de hardware crudo (ej. alsa_input.hw_EVO4_0),
+    // que contiene todos los canales físicos (mic1 y mic2) sin separación virtual UCM.
+    if let Some(hw) = candidates.iter().find(|c| c.contains("hw_")) {
+        return Some(hw.clone());
+    }
+
+    // Prioridad 2: Nodos de micrófono o fuentes principales que no sean .split ni Line (loopback)
+    if let Some(node) = candidates.iter().find(|c| !c.contains(".split") && !c.contains("Line")) {
+        return Some(node.clone());
+    }
+
+    candidates.into_iter().next()
 }
 
 /// Lanza el subproceso de captura de audio crudo en modo pasivo.
