@@ -1,12 +1,9 @@
 name: Build Suite
 
 # ==============================================================================
-# IMPORTANTE: Desactivado automáticamente para push y pull_request.
-# NO consume minutos de GitHub Actions a menos que se dispare manualmente desde
-# la pestaña "Actions" -> "Build Suite" -> "Run workflow".
-#
-# Cuando el repositorio sea público / open source y desees CI automático,
-# descomenta las secciones `push:` y `pull_request:` a continuación.
+# GitHub Actions CI: Verificación, compilación y empaquetado para Linux x86_64.
+# Se ejecuta automáticamente en push y pull_request a `main` y `dev`,
+# y puede ejecutarse bajo demanda con parámetros personalizados en `workflow_dispatch`.
 # ==============================================================================
 on:
   workflow_dispatch:
@@ -27,11 +24,11 @@ on:
         type: boolean
         default: false
 
-  # push:
-  #   branches: [ main ]
-  #   tags: [ 'v*' ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [ main, dev ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, dev ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -176,17 +173,19 @@ jobs:
         run: bun run build
 
       - name: Compilar binario de escritorio (sin empaquetar)
-        if: ${{ !inputs.create_deb }}
+        if: ${{ !inputs.create_deb && !startsWith(github.ref, 'refs/tags/v') }}
         working-directory: apps/desktop
         run: bun run tauri build --no-bundle --ignore-version-mismatches
 
       - name: Compilar y empaquetar paquetes (.deb)
-        if: ${{ inputs.create_deb }}
+        if: ${{ inputs.create_deb || startsWith(github.ref, 'refs/tags/v') }}
         working-directory: apps/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: bun run tauri build --bundles deb --ignore-version-mismatches
 
       - name: Preparar artefacto binario
-        if: ${{ !inputs.create_deb }}
+        if: ${{ !inputs.create_deb && !startsWith(github.ref, 'refs/tags/v') }}
         run: |
           mkdir -p dist/desktop
           cp target/release/evo-desktop dist/desktop/
@@ -194,17 +193,71 @@ jobs:
           tar -czvf evo-desktop-linux-x86_64.tar.gz -C dist/desktop .
 
       - name: Subir artefacto binario standalone
-        if: ${{ !inputs.create_deb }}
+        if: ${{ !inputs.create_deb && !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: evo-desktop-linux-x86_64
           path: evo-desktop-linux-x86_64.tar.gz
           retention-days: 14
 
-      - name: Subir paquete instalable .deb
-        if: ${{ inputs.create_deb }}
+      - name: Subir paquete instalable .deb y firmas
+        if: ${{ inputs.create_deb || startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: evo-desktop-deb
-          path: target/release/bundle/deb/*.deb
+          path: |
+            target/release/bundle/deb/*.deb
+            target/release/bundle/deb/*.deb.sig
           retention-days: 14
+
+  # ----------------------------------------------------------------------------
+  # Job 4: Publicar Release en GitHub (cuando se pushea un tag v*)
+  # ----------------------------------------------------------------------------
+  publish-release:
+    name: Publish Release & Updater Manifest
+    needs: [build-daemon, build-desktop]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Preparar directorio de release
+        run: mkdir -p release-assets
+
+      - name: Descargar artefactos del Daemon
+        uses: actions/download-artifact@v4
+        with:
+          name: evo-daemon-linux-x86_64
+          path: release-assets/
+
+      - name: Descargar artefactos de Desktop (.deb)
+        uses: actions/download-artifact@v4
+        with:
+          name: evo-desktop-deb
+          path: release-assets/
+
+      - name: Generar latest.json para el auto-updater
+        env:
+          ARTIFACTS_DIR: release-assets
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          NOTES_FILE: CHANGELOG.md
+        run: |
+          node .github/scripts/generate-latest-json.mjs || echo "Aviso: latest.json no generado si no se encontraron firmas"
+
+      - name: Crear Release en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

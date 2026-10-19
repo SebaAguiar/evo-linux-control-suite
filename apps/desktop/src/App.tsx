@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { ActiveMode } from "./types";
 import { useEvoSocket } from "./hooks/useEvoSocket";
+import { useUpdater } from "./hooks/useUpdater";
 import { TitleBar } from "./components/TitleBar";
 import { MainDial } from "./components/MainDial";
 import { SteppersBar } from "./components/SteppersBar";
@@ -14,6 +15,8 @@ export function App() {
   const [activeMode, setActiveMode] = useState<ActiveMode>("ch0");
   const [isQrOpen, setIsQrOpen] = useState(false);
 
+  const updater = useUpdater();
+
   const {
     channels,
     setChannels,
@@ -25,6 +28,15 @@ export function App() {
     toast,
     showToast,
   } = useEvoSocket();
+
+  useEffect(() => {
+    if (updater.updateInfo) {
+      showToast(
+        `Nueva versión v${updater.updateInfo.version} disponible. Pulsa "Actualizar" para instalarla.`,
+        false
+      );
+    }
+  }, [updater.updateInfo, showToast]);
 
   const handleGainChange = useCallback(
     (chIdx: number, newGain: number) => {
@@ -93,7 +105,14 @@ export function App() {
       <ToastBanner toast={toast} />
       <QrModal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />
 
-      <TitleBar connStatus={connStatus} onOpenQr={() => setIsQrOpen(true)} />
+      <TitleBar
+        connStatus={connStatus}
+        onOpenQr={() => setIsQrOpen(true)}
+        updateInfo={updater.updateInfo}
+        downloading={updater.downloading}
+        progress={updater.progress}
+        onDownloadUpdate={updater.downloadAndInstall}
+      />
 
       <div className="evo-surface-viewport">
         <div className="evo-deck">

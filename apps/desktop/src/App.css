@@ -144,6 +144,62 @@ html, body {
   fill: currentColor;
 }
 
+.update-btn {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: updatePulse 2s infinite ease-in-out;
+}
+
+.update-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.8);
+  color: #6ee7b7;
+}
+
+.update-btn:disabled {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.update-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.update-btn.downloading svg {
+  animation: updateSpin 1s linear infinite;
+}
+
+@keyframes updatePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 6px 2px rgba(16, 185, 129, 0.25);
+  }
+}
+
+@keyframes updateSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* QR Code Modal Overlay */
 .qr-modal-overlay {
   position: fixed;
