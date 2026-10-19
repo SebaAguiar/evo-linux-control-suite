@@ -79,6 +79,17 @@ pub fn detect_evo_node() -> Option<String> {
 
 /// Detecta el nombre de nodo de salida (sink / playback) en PipeWire correspondiente a la EVO.
 pub fn detect_evo_output_node() -> Option<String> {
+    // 0. Revisar primero si el sink por defecto actual del sistema pertenece a la EVO
+    if let Ok(output) = Command::new("pactl").arg("get-default-sink").output() {
+        if output.status.success() {
+            let def = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let lower = def.to_lowercase();
+            if (lower.contains("evo4") || lower.contains("audient")) && !lower.contains(".split") {
+                return Some(def);
+            }
+        }
+    }
+
     let mut candidates = Vec::new();
 
     if let Ok(output) = Command::new("pw-cli")
@@ -129,6 +140,7 @@ fn spawn_capture_child(target: Option<&str>, channels: u8) -> Result<Child, Mete
         let mut cmd = Command::new("pw-record");
         cmd.args([
             "-a",
+            "--latency=20ms",
             "--channels",
             &channels.to_string(),
             "--rate",
@@ -153,6 +165,7 @@ fn spawn_capture_child(target: Option<&str>, channels: u8) -> Result<Child, Mete
         let mut cmd = Command::new("parec");
         cmd.args([
             "--raw",
+            "--latency-msec=20",
             &format!("--channels={channels}"),
             "--rate=48000",
             "--format=s16le",
@@ -187,6 +200,40 @@ fn spawn_capture_child(target: Option<&str>, channels: u8) -> Result<Child, Mete
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::null());
     cmd.spawn().map_err(|e| MeterError::Backend(e.to_string()))
+}
+
+/// Lanza el subproceso de captura de monitor de salida (playback) en modo pasivo.
+fn spawn_monitor_capture_child(target: Option<&str>, channels: u8) -> Result<Child, MeterError> {
+    // 1. Intentar parec (PipeWire-Pulse)
+    // En PipeWire, un sink de salida se monitorea conectándose a su fuente .monitor.
+    // parec con -d <sink>.monitor y baja latencia transmite en streaming sin bloquear el pipe.
+    if Command::new("parec").arg("--version").output().is_ok() {
+        let mut cmd = Command::new("parec");
+        cmd.args([
+            "--raw",
+            "--latency-msec=20",
+            &format!("--channels={channels}"),
+            "--rate=48000",
+            "--format=s16le",
+        ]);
+        if let Some(t) = target {
+            let mon_target = if t.ends_with(".monitor") {
+                t.to_string()
+            } else {
+                format!("{t}.monitor")
+            };
+            cmd.args(["-d", &mon_target]);
+        }
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::null());
+        if let Ok(child) = cmd.spawn() {
+            tracing::debug!(target = ?target, "Captura de monitor de salida iniciada con parec");
+            return Ok(child);
+        }
+    }
+
+    // 2. Fallback
+    spawn_capture_child(target, channels)
 }
 
 fn spawn_meter_stream_reader(
@@ -329,7 +376,7 @@ impl MeterSource for PcmMeterSource {
         }
 
         // 2. Stream de salidas (Playback Music L & R -> canales 2 y 3)
-        if let Ok(mut child) = spawn_capture_child(self.output_target.as_deref(), 2) {
+        if let Ok(mut child) = spawn_monitor_capture_child(self.output_target.as_deref(), 2) {
             if let Some(stdout) = child.stdout.take() {
                 let thread = spawn_meter_stream_reader(
                     stdout,
