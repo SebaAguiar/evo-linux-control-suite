@@ -62,60 +62,74 @@
       --mini-dial-track: #2c2e33;
     }
 
-    :root[data-theme="brand"], [data-theme="brand"] {
-      color-scheme: light;
+    :root[data-theme="brand"], :root[data-theme="dark"], [data-theme="brand"], [data-theme="dark"] {
+      color-scheme: dark;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-      /* Arsian Brand Palette */
-      --color-primary: #111827;      /* gray-900 */
-      --color-secondary: #374151;    /* gray-700 */
-      --color-muted: #6B7280;        /* gray-500 */
-      --color-border: #E5E7EB;       /* gray-200 */
-      --color-border-hover: #D1D5DB; /* gray-300 */
-      --color-surface: #F3F4F6;      /* gray-100 */
-      --color-surface-subtle: #E5E7EB;
-      --color-background: #F9FAFB;   /* gray-50 */
-      --color-titlebar: #FFFFFF;
-      --color-accent: #6366F1;       /* indigo */
-      --color-accent-light: #818CF8; /* indigo claro */
-      --color-accent-rgb: 99, 102, 241;
-      --color-accent-glow: rgba(99, 102, 241, 0.4);
+      /* Official Arsian Brand Dark Palette */
+      --background: #111827;
+      --surface: #1F2937;
+      --surface-elevated: #374151;
+      --border: #374151;
+
+      --text-primary: #F9FAFB;
+      --text-secondary: #D1D5DB;
+      --text-muted: #9CA3AF;
+
+      --accent: #818CF8;
+      --accent-hover: #A5B4FC;
+      --accent-foreground: #111827;
+
+      /* Mapped design tokens */
+      --color-primary: #F9FAFB;
+      --color-secondary: #D1D5DB;
+      --color-muted: #9CA3AF;
+      --color-border: #374151;
+      --color-border-hover: #4B5563;
+      --color-surface: #1F2937;
+      --color-surface-subtle: #374151;
+      --color-background: #111827;
+      --color-titlebar: #111827;
+      --color-accent: #818CF8;
+      --color-accent-light: #A5B4FC;
+      --color-accent-rgb: 129, 140, 248;
+      --color-accent-glow: rgba(129, 140, 248, 0.4);
 
       /* Audio functional indicators */
       --bg-panel: var(--color-surface);
-      --bg-chassis: #F3F4F6;
-      --bg-knob: #FFFFFF;
-      --led-active: #6366F1;
-      --led-inactive: #E5E7EB;
-      --led-glow: rgba(99, 102, 241, 0.6);
-      --green-evo: #6366F1;
-      --green-smartgain: #6366F1;
+      --bg-chassis: #111827;
+      --bg-knob: #1F2937;
+      --led-active: #818CF8;
+      --led-inactive: #2b3648;
+      --led-glow: rgba(129, 140, 248, 0.6);
+      --green-evo: #818CF8;
+      --green-smartgain: #818CF8;
       --red-mute: #EF4444;
       --amber-48v: #F59E0B;
-      --text-main: #111827;
-      --text-muted: #6B7280;
+      --text-main: #F9FAFB;
+      --text-muted: #9CA3AF;
 
       /* Controls & dials */
-      --bg-knob-outer: radial-gradient(circle at 50% 50%, #ffffff 0%, #f3f4f6 68%, #e5e7eb 100%);
-      --bg-knob-indent: radial-gradient(circle at 50% 50%, #ffffff 0%, #f9fafb 65%, #f3f4f6 100%);
-      --border-knob: #D1D5DB;
-      --border-knob-indent: #E5E7EB;
-      --text-knob-num: #111827;
-      --btn-round-bg: #FFFFFF;
-      --btn-round-border: #E5E7EB;
-      --btn-round-color: #374151;
-      --btn-round-hover-bg: #F3F4F6;
-      --btn-round-hover-color: #111827;
-      --step-btn-bg: #FFFFFF;
-      --step-btn-border: #E5E7EB;
-      --step-btn-color: #374151;
-      --step-btn-hover-bg: #F3F4F6;
-      --step-btn-hover-color: #111827;
-      --steppers-bar-bg: rgba(229, 231, 235, 0.6);
-      --steppers-bar-border: #E5E7EB;
-      --mini-knob-bg: radial-gradient(circle at 40% 40%, #ffffff 0%, #f3f4f6 100%);
-      --mini-knob-border: #D1D5DB;
-      --mini-dial-track: #E5E7EB;
+      --bg-knob-outer: radial-gradient(circle at 50% 50%, #283548 0%, #1f2937 70%, #151d28 100%);
+      --bg-knob-indent: radial-gradient(circle at 50% 50%, #111827 0%, #161e2e 65%, #1f2937 100%);
+      --border-knob: #374151;
+      --border-knob-indent: rgba(255, 255, 255, 0.06);
+      --text-knob-num: #F9FAFB;
+      --btn-round-bg: #1F2937;
+      --btn-round-border: #374151;
+      --btn-round-color: #D1D5DB;
+      --btn-round-hover-bg: #374151;
+      --btn-round-hover-color: #F9FAFB;
+      --step-btn-bg: #1F2937;
+      --step-btn-border: #374151;
+      --step-btn-color: #D1D5DB;
+      --step-btn-hover-bg: #374151;
+      --step-btn-hover-color: #F9FAFB;
+      --steppers-bar-bg: rgba(17, 24, 39, 0.6);
+      --steppers-bar-border: #374151;
+      --mini-knob-bg: radial-gradient(circle at 40% 40%, #2d3748 0%, #1a202c 100%);
+      --mini-knob-border: #374151;
+      --mini-dial-track: #283244;
     }
 
     * {
