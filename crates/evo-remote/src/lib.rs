@@ -276,11 +276,16 @@ async fn api_qr_svg(
 }
 
 async fn index() -> Html<std::borrow::Cow<'static, str>> {
-    if let Ok(content) = std::fs::read_to_string("apps/remote-web/public/index.html") {
-        Html(std::borrow::Cow::Owned(content))
-    } else {
-        Html(std::borrow::Cow::Borrowed(INDEX_HTML))
+    let candidate_paths = [
+        "apps/remote-web/public/index.html",
+        "/home/seba/Documentos/trabajo/arsian/evo-linux-control-suite/apps/remote-web/public/index.html",
+    ];
+    for path in candidate_paths {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            return Html(std::borrow::Cow::Owned(content));
+        }
     }
+    Html(std::borrow::Cow::Borrowed(INDEX_HTML))
 }
 
 /// Cliente web estático para control remoto (`apps/remote-web/public/index.html`).

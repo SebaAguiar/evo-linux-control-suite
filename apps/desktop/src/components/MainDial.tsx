@@ -39,8 +39,40 @@ export const MainDial: React.FC<MainDialProps> = ({
     }, 1200);
   }, []);
 
+  // Cómputo de vúmetro en dBFS (-55 a 0 dBFS)
+  const meterVal = meterDb ?? -128;
+  const isMeterActive =
+    (activeMode === "ch0" || activeMode === "ch1" || activeMode === "out") &&
+    !userAdjusting &&
+    !isDragging &&
+    !isEditing;
+  const meterRatio = Math.max(0, Math.min(1, (meterVal + 55) / 55));
+  const peakPos = meterRatio * (TOTAL_LEDS - 1);
+
   // Active value & labels
   const currentInfo = useMemo(() => {
+    // Si el vúmetro está activo y hay señal audible (> -55 dBFS), mostramos el valor dinámico en tiempo real
+    const isLiveMeterRunning = isMeterActive && meterVal > -55;
+
+    if (isLiveMeterRunning) {
+      const liveText = meterVal >= -0.1 ? "0.0" : meterVal.toFixed(1);
+      const liveColor = meterVal >= -0.5 ? "#ff3b30" : "#ffffff";
+      const liveDesc =
+        activeMode === "out"
+          ? "VÚMETRO SALIDA"
+          : activeMode === "ch0"
+          ? "MIC 1 • EN VIVO"
+          : "MIC 2 • EN VIVO";
+      return {
+        text: liveText,
+        color: liveColor,
+        unit: "dB",
+        desc: liveDesc,
+        ratio: meterRatio,
+        isMuted: false,
+      };
+    }
+
     if (activeMode === "ch0" || activeMode === "ch1") {
       const chIdx = activeMode === "ch0" ? 0 : 1;
       const ch = channels[chIdx];
@@ -76,14 +108,14 @@ export const MainDial: React.FC<MainDialProps> = ({
     }
     const ratio = Math.max(0, Math.min(1, (vol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
     return { text: vol.toFixed(1), color: "var(--text-knob-num)", unit: "dB", desc: "VOLUMEN SALIDA", ratio, isMuted: false };
-  }, [activeMode, channels, monitorMix]);
+  }, [activeMode, channels, monitorMix, isMeterActive, meterVal, meterRatio]);
 
-  // Sync displayed value when not editing
+  // Sync displayed value when not editing and not in live meter mode
   useEffect(() => {
-    if (!isEditing) {
+    if (!isEditing && (!isMeterActive || meterVal <= -55)) {
       setInputValue(currentInfo.text);
     }
-  }, [currentInfo.text, isEditing]);
+  }, [currentInfo.text, isEditing, isMeterActive, meterVal]);
 
   // Pre-calculate 19 halo dots matching exact Audient EVO 4 hardware
   const haloDots = useMemo(() => {
@@ -115,17 +147,6 @@ export const MainDial: React.FC<MainDialProps> = ({
     : activeMode === "mix"
     ? "var(--color-accent-glow)"
     : "rgba(255, 255, 255, 0.85)";
-
-  // Cómputo de vúmetro en dBFS (-55 a 0 dBFS)
-  const meterVal = meterDb ?? -128;
-  const isMeterActive =
-    (activeMode === "ch0" || activeMode === "ch1" || activeMode === "out") &&
-    !currentInfo.isMuted &&
-    !userAdjusting &&
-    !isDragging &&
-    !isEditing;
-  const meterRatio = Math.max(0, Math.min(1, (meterVal + 55) / 55));
-  const peakPos = meterRatio * (TOTAL_LEDS - 1);
 
   // Drag interaction
   const isDraggingRef = useRef(false);
@@ -356,16 +377,15 @@ export const MainDial: React.FC<MainDialProps> = ({
             let intensity = 0;
 
             if (idx <= peakPos) {
-              const strongBand = Math.min(4, Math.floor(peakPos * 0.45)); // Hasta los primeros 5 LEDs (0..4)
-              if (idx <= strongBand) {
-                // Primeros LEDs: brillo pleno e intensidad fuerte
+              if (idx <= 4) {
+                // Los primeros 5 LEDs (índices 0..4): SIEMPRE al 100% pleno y fuerte
                 intensity = 1.0;
               } else {
-                // Rango gradual desde strongBand hasta peakPos
-                const span = peakPos - strongBand;
-                const ratio = span > 0 ? (idx - strongBand) / span : 0;
-                // De 0.95 (cerca de la base) a 0.28 (en el límite superior del pico)
-                intensity = Math.max(0.25, 0.95 - ratio * 0.68);
+                // Rango gradual desde el 5to LED hasta el pico actual
+                const span = peakPos - 4;
+                const ratio = span > 0 ? (idx - 4) / span : 0;
+                // De 0.90 (cerca de los primeros 5) a 0.25 (en el borde del pico)
+                intensity = Math.max(0.25, 0.90 - ratio * 0.65);
               }
             } else if (idx - peakPos < 1.0) {
               // Suavizado fraccional para el LED inmediatamente siguiente al pico
@@ -382,14 +402,14 @@ export const MainDial: React.FC<MainDialProps> = ({
               } else {
                 // Blanco puro con opacidad e intensidad gradual
                 dotColor = "#ffffff";
-                dotOpacity = Math.max(0.20, Math.min(1.0, intensity));
+                dotOpacity = idx <= 4 ? 1.0 : Math.max(0.20, Math.min(1.0, intensity));
                 dotGlow =
-                  intensity >= 0.85
-                    ? "drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))"
-                    : intensity >= 0.55
-                    ? "drop-shadow(0 0 4px rgba(255, 255, 255, 0.75))"
-                    : intensity >= 0.25
-                    ? "drop-shadow(0 0 2px rgba(255, 255, 255, 0.45))"
+                  idx <= 4
+                    ? "drop-shadow(0 0 6px rgba(255, 255, 255, 1.0)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.7))"
+                    : intensity >= 0.6
+                    ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.8))"
+                    : intensity >= 0.35
+                    ? "drop-shadow(0 0 3px rgba(255, 255, 255, 0.5))"
                     : "none";
               }
             } else if (idx === activeLedCount - 1) {
