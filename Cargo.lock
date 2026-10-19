@@ -1020,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "evo-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evo-domain",
  "evo-mock",
@@ -1032,7 +1032,7 @@ dependencies = [
 
 [[package]]
 name = "evo-daemon"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evo-core",
  "evo-domain",
@@ -1054,7 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "evo-desktop"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1067,7 +1067,7 @@ dependencies = [
 
 [[package]]
 name = "evo-domain"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bitflags 2.13.2",
  "serde",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "evo-ipc"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evo-domain",
  "serde",
@@ -1086,7 +1086,7 @@ dependencies = [
 
 [[package]]
 name = "evo-mock"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evo-domain",
  "evo-ports",
@@ -1094,7 +1094,7 @@ dependencies = [
 
 [[package]]
 name = "evo-persist"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evo-domain",
  "evo-ports",
@@ -1106,14 +1106,14 @@ dependencies = [
 
 [[package]]
 name = "evo-ports"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evo-domain",
 ]
 
 [[package]]
 name = "evo-remote"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "evo-core",

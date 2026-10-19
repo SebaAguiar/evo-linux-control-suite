@@ -1,6 +1,6 @@
 {
   "name": "evo-linux-control-suite",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Native Linux control suite and system daemon for Audient EVO audio interfaces (EVO 4, EVO 8, EVO 16)",
   "private": true,
   "license": "MIT",

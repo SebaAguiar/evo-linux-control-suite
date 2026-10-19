@@ -9,11 +9,22 @@ Releases and changelog entries follow [Conventional Commits](https://www.convent
 
 ---
 
-## [0.1.0] - 2026-10-18
+## [1.0.0] - 2026-10-19
 
-Initial release of the **EVO Linux Control Suite** — a native open-source control suite and system daemon for Audient EVO audio interfaces (EVO 4, EVO 8, EVO 16) on Linux.
+First official stable release of the **EVO Linux Control Suite** adhering to Semantic Versioning (SemVer).
 
 ### Added
+
+#### Auto-Updater & In-App Upgrades
+- In-app update checker integrated into the desktop application (`useUpdater` hook) checking against GitHub Releases every hour.
+- One-click update button in the launcher header (`TitleBar`) that displays live download percentage progress and automatically relaunches the application upon completion.
+- Ed25519 cryptographic signing of releases and Debian (`.deb`) bundles.
+- Automatic `latest.json` static manifest generator (`generate-latest-json.mjs`) for frictionless OTA updates.
+
+#### Open Source Infrastructure & Release CI
+- Automated GitHub Actions workflow for release creation on git tag (`v*`) with asset packaging and signature verification.
+- GitHub Issue Forms for bug reports and feature requests, Pull Request template with testing checklist, and Dependabot dependency management.
+- Comprehensive `README.md` with system architecture diagrams, installation instructions, and hardware compatibility matrix.
 
 #### Core Architecture & System Daemon (`crates/`)
 - Hexagonal architecture decoupling domain logic from hardware transport:
