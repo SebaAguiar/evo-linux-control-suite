@@ -62,7 +62,7 @@
       --mini-dial-track: #2c2e33;
     }
 
-    [data-theme="brand"] {
+    :root[data-theme="brand"], [data-theme="brand"] {
       color-scheme: light;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
@@ -1057,45 +1057,6 @@
   </div>
 
   <script>
-    // Theme Management (EVO Default vs Brand Arsian)
-    const THEME_STORAGE_KEY = "evo_ui_theme";
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    const themeToggleLabel = document.getElementById("theme-toggle-label");
-
-    function getStoredTheme() {
-      try {
-        const saved = localStorage.getItem(THEME_STORAGE_KEY);
-        if (saved === "brand" || saved === "evo") return saved;
-      } catch (_) {}
-      return "evo";
-    }
-
-    function applyTheme(theme) {
-      document.documentElement.setAttribute("data-theme", theme);
-      document.body.setAttribute("data-theme", theme);
-      const evoWindow = document.querySelector(".evo-window");
-      if (evoWindow) evoWindow.setAttribute("data-theme", theme);
-      if (themeToggleLabel) {
-        themeToggleLabel.textContent = theme === "brand" ? "Arsian" : "EVO";
-      }
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, theme);
-      } catch (_) {}
-      if (typeof updateUI === "function") {
-        updateUI();
-      }
-    }
-
-    let currentTheme = getStoredTheme();
-    applyTheme(currentTheme);
-
-    if (themeToggleBtn) {
-      themeToggleBtn.addEventListener("click", () => {
-        currentTheme = currentTheme === "evo" ? "brand" : "evo";
-        applyTheme(currentTheme);
-      });
-    }
-
     // State management
     let ws = null;
     let nextId = 1;
@@ -1281,6 +1242,43 @@
       }
     }
     updateUI();
+
+    // Theme Management (EVO Default vs Brand Arsian)
+    const THEME_STORAGE_KEY = "evo_ui_theme";
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    const themeToggleLabel = document.getElementById("theme-toggle-label");
+
+    function getStoredTheme() {
+      try {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        if (saved === "brand" || saved === "evo") return saved;
+      } catch (_) {}
+      return "evo";
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      document.body.setAttribute("data-theme", theme);
+      const evoWindow = document.querySelector(".evo-window");
+      if (evoWindow) evoWindow.setAttribute("data-theme", theme);
+      if (themeToggleLabel) {
+        themeToggleLabel.textContent = theme === "brand" ? "Arsian" : "EVO";
+      }
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (_) {}
+      updateUI();
+    }
+
+    let currentTheme = getStoredTheme();
+    applyTheme(currentTheme);
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener("click", () => {
+        currentTheme = currentTheme === "evo" ? "brand" : "evo";
+        applyTheme(currentTheme);
+      });
+    }
 
     // Mode Selection Listeners
     document.getElementById("ch-select-0").addEventListener("click", () => {
