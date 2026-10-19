@@ -172,19 +172,29 @@
     .evo-titlebar {
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 10px 16px;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      min-height: 42px;
+      box-sizing: border-box;
       background: var(--color-titlebar);
       border-bottom: 1px solid var(--color-border);
       position: relative;
       transition: background 0.25s ease, border-color 0.25s ease;
     }
 
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex-shrink: 1;
+    }
+
     .window-dots {
-      position: absolute;
-      left: 14px;
       display: flex;
       gap: 6px;
+      flex-shrink: 0;
     }
 
     .dot {
@@ -199,10 +209,13 @@
 
     .window-title {
       font-size: 11px;
-      font-weight: 500;
+      font-weight: 600;
       letter-spacing: 0.05em;
       color: var(--color-muted);
       text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .conn-status-dot {
@@ -211,6 +224,7 @@
       border-radius: 50%;
       background: #ff453a;
       transition: background 0.3s;
+      flex-shrink: 0;
     }
 
     .conn-status-dot.connected {
@@ -219,11 +233,11 @@
     }
 
     .titlebar-right {
-      position: absolute;
-      right: 14px;
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
     }
 
     .theme-toggle-btn {
@@ -284,6 +298,15 @@
       width: 12px;
       height: 12px;
       fill: currentColor;
+    }
+
+    @media (max-width: 380px) {
+      .qr-btn span {
+        display: none;
+      }
+      .qr-btn {
+        padding: 3px 6px;
+      }
     }
 
     /* QR Code Modal Overlay */
@@ -931,12 +954,14 @@
 
     <!-- Window Titlebar -->
     <div class="evo-titlebar">
-      <div class="window-dots">
-        <div class="dot close"></div>
-        <div class="dot min"></div>
-        <div class="dot max"></div>
+      <div class="titlebar-left">
+        <div class="window-dots">
+          <div class="dot close"></div>
+          <div class="dot min"></div>
+          <div class="dot max"></div>
+        </div>
+        <div class="window-title" id="title-text">EVO Control — EVO 4</div>
       </div>
-      <div class="window-title" id="title-text">EVO Control — EVO 4</div>
       <div class="titlebar-right">
         <button class="theme-toggle-btn" id="theme-toggle-btn" title="Alternar tema: EVO Oficial / Arsian">
           <span class="theme-toggle-dot"></span>
