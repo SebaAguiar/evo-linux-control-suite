@@ -6,9 +6,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-select=no">
   <title>EVO Control</title>
   <style>
-    :root {
+    :root, [data-theme="evo"] {
       color-scheme: dark;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+      /* Official EVO Hardware Palette */
+      --color-primary: #f2f2f7;
+      --color-secondary: #a1a1aa;
+      --color-muted: #71717a;
+      --color-border: rgba(255, 255, 255, 0.08);
+      --color-border-hover: rgba(255, 255, 255, 0.22);
+      --color-surface: #202124;
+      --color-surface-subtle: #1c1d20;
+      --color-background: #0d0e11;
+      --color-titlebar: #18191b;
+      --color-accent: #00ea76;        /* EVO signature green */
+      --color-accent-light: #34d399;  /* EVO light green */
+      --color-accent-rgb: 0, 234, 118;
+      --color-accent-glow: rgba(0, 234, 118, 0.4);
+
+      /* Audio functional indicators */
       --bg-panel: #202124;
       --bg-chassis: #191a1d;
       --bg-knob: #1c1d20;
@@ -21,6 +38,84 @@
       --amber-48v: #ff453a;
       --text-main: #f2f2f7;
       --text-muted: #8e8e93;
+
+      /* Controls & dials */
+      --bg-knob-outer: radial-gradient(circle at 50% 50%, #24262b 0%, #18191c 70%, #101113 100%);
+      --bg-knob-indent: radial-gradient(circle at 50% 50%, #121316 0%, #17181c 65%, #202227 100%);
+      --border-knob: #2b2e35;
+      --border-knob-indent: rgba(255, 255, 255, 0.05);
+      --text-knob-num: #ffffff;
+      --btn-round-bg: #1a1b1e;
+      --btn-round-border: #2f3136;
+      --btn-round-color: #777777;
+      --btn-round-hover-bg: #24262b;
+      --btn-round-hover-color: #bbbbbb;
+      --step-btn-bg: #1a1b1e;
+      --step-btn-border: #2d3036;
+      --step-btn-color: #999999;
+      --step-btn-hover-bg: #25272c;
+      --step-btn-hover-color: #ffffff;
+      --steppers-bar-bg: rgba(0, 0, 0, 0.3);
+      --steppers-bar-border: rgba(255, 255, 255, 0.05);
+      --mini-knob-bg: radial-gradient(circle at 40% 40%, #2f3136 0%, #18191c 100%);
+      --mini-knob-border: #3c3e44;
+      --mini-dial-track: #2c2e33;
+    }
+
+    [data-theme="brand"] {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+      /* Arsian Brand Palette */
+      --color-primary: #111827;      /* gray-900 */
+      --color-secondary: #374151;    /* gray-700 */
+      --color-muted: #6B7280;        /* gray-500 */
+      --color-border: #E5E7EB;       /* gray-200 */
+      --color-border-hover: #D1D5DB; /* gray-300 */
+      --color-surface: #F3F4F6;      /* gray-100 */
+      --color-surface-subtle: #E5E7EB;
+      --color-background: #F9FAFB;   /* gray-50 */
+      --color-titlebar: #FFFFFF;
+      --color-accent: #6366F1;       /* indigo */
+      --color-accent-light: #818CF8; /* indigo claro */
+      --color-accent-rgb: 99, 102, 241;
+      --color-accent-glow: rgba(99, 102, 241, 0.4);
+
+      /* Audio functional indicators */
+      --bg-panel: var(--color-surface);
+      --bg-chassis: #F3F4F6;
+      --bg-knob: #FFFFFF;
+      --led-active: #6366F1;
+      --led-inactive: #E5E7EB;
+      --led-glow: rgba(99, 102, 241, 0.6);
+      --green-evo: #6366F1;
+      --green-smartgain: #6366F1;
+      --red-mute: #EF4444;
+      --amber-48v: #F59E0B;
+      --text-main: #111827;
+      --text-muted: #6B7280;
+
+      /* Controls & dials */
+      --bg-knob-outer: radial-gradient(circle at 50% 50%, #ffffff 0%, #f3f4f6 68%, #e5e7eb 100%);
+      --bg-knob-indent: radial-gradient(circle at 50% 50%, #ffffff 0%, #f9fafb 65%, #f3f4f6 100%);
+      --border-knob: #D1D5DB;
+      --border-knob-indent: #E5E7EB;
+      --text-knob-num: #111827;
+      --btn-round-bg: #FFFFFF;
+      --btn-round-border: #E5E7EB;
+      --btn-round-color: #374151;
+      --btn-round-hover-bg: #F3F4F6;
+      --btn-round-hover-color: #111827;
+      --step-btn-bg: #FFFFFF;
+      --step-btn-border: #E5E7EB;
+      --step-btn-color: #374151;
+      --step-btn-hover-bg: #F3F4F6;
+      --step-btn-hover-color: #111827;
+      --steppers-bar-bg: rgba(229, 231, 235, 0.6);
+      --steppers-bar-border: #E5E7EB;
+      --mini-knob-bg: radial-gradient(circle at 40% 40%, #ffffff 0%, #f3f4f6 100%);
+      --mini-knob-border: #D1D5DB;
+      --mini-dial-track: #E5E7EB;
     }
 
     * {
@@ -33,7 +128,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: #0d0e11;
+      background: var(--color-background);
       color: var(--text-main);
       display: flex;
       flex-direction: column;
@@ -41,6 +136,7 @@
       justify-content: center;
       min-height: 100vh;
       overflow-x: hidden;
+      transition: background 0.25s ease, color 0.25s ease;
     }
 
     /* Floating Window / Chassis */
@@ -49,12 +145,13 @@
       max-width: 440px;
       background: var(--bg-panel);
       border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--color-border);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--color-border);
       overflow: hidden;
       display: flex;
       flex-direction: column;
       position: relative;
+      transition: background 0.25s ease, border-color 0.25s ease;
     }
 
     /* Window Header */
@@ -63,9 +160,10 @@
       align-items: center;
       justify-content: center;
       padding: 10px 16px;
-      background: #18191b;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+      background: var(--color-titlebar);
+      border-bottom: 1px solid var(--color-border);
       position: relative;
+      transition: background 0.25s ease, border-color 0.25s ease;
     }
 
     .window-dots {
@@ -89,7 +187,7 @@
       font-size: 11px;
       font-weight: 500;
       letter-spacing: 0.05em;
-      color: #888;
+      color: var(--color-muted);
       text-transform: uppercase;
     }
 
@@ -102,8 +200,8 @@
     }
 
     .conn-status-dot.connected {
-      background: var(--green-evo);
-      box-shadow: 0 0 8px var(--green-evo);
+      background: var(--color-accent);
+      box-shadow: 0 0 8px var(--color-accent-glow);
     }
 
     .titlebar-right {
@@ -111,13 +209,44 @@
       right: 14px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+    }
+
+    .theme-toggle-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--color-border);
+      color: var(--color-secondary);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 7px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--color-border-hover);
+      color: var(--text-main);
+      border-color: var(--color-accent);
+    }
+
+    .theme-toggle-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      box-shadow: 0 0 6px var(--color-accent-glow);
     }
 
     .qr-btn {
       background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #aaa;
+      border: 1px solid var(--color-border);
+      color: var(--color-muted);
       font-size: 10.5px;
       font-weight: 600;
       letter-spacing: 0.03em;
@@ -132,9 +261,9 @@
     }
 
     .qr-btn:hover {
-      background: rgba(255, 255, 255, 0.14);
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.28);
+      background: var(--color-border-hover);
+      color: var(--text-main);
+      border-color: var(--color-border-hover);
     }
 
     .qr-btn svg {
@@ -160,12 +289,12 @@
     }
 
     .qr-modal-card {
-      background: #1c1d22;
-      border: 1px solid #333640;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
       border-radius: 16px;
       width: 320px;
       max-width: 90vw;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--color-border);
       padding: 20px;
       display: flex;
       flex-direction: column;
@@ -197,13 +326,13 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #fff;
+      color: var(--text-main);
     }
 
     .qr-modal-close {
       background: transparent;
       border: none;
-      color: #888;
+      color: var(--color-muted);
       font-size: 20px;
       cursor: pointer;
       padding: 0 4px;
@@ -212,14 +341,14 @@
     }
 
     .qr-modal-close:hover {
-      color: #fff;
+      color: var(--text-main);
     }
 
     .qr-code-wrapper {
       background: #ffffff;
       padding: 12px;
       border-radius: 12px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
       margin-bottom: 14px;
       width: 200px;
       height: 200px;
@@ -236,7 +365,7 @@
 
     .qr-instructions {
       font-size: 11.5px;
-      color: #aaa;
+      color: var(--color-muted);
       line-height: 1.4;
       margin: 0 0 14px 0;
     }
@@ -249,21 +378,21 @@
 
     .qr-url-input {
       flex: 1;
-      background: #121316;
-      border: 1px solid #2d3038;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
       border-radius: 8px;
       padding: 8px 10px;
       font-size: 11px;
-      color: var(--green-evo);
+      color: var(--color-accent);
       font-family: monospace;
       outline: none;
       text-align: center;
     }
 
     .qr-copy-btn {
-      background: #2a2c34;
-      border: 1px solid #3d404c;
-      color: #fff;
+      background: var(--step-btn-bg);
+      border: 1px solid var(--step-btn-border);
+      color: var(--step-btn-color);
       font-size: 11px;
       font-weight: 600;
       padding: 0 12px;
@@ -273,8 +402,8 @@
     }
 
     .qr-copy-btn:hover {
-      background: #363944;
-      border-color: #505464;
+      background: var(--step-btn-hover-bg);
+      color: var(--step-btn-hover-color);
     }
 
     /* Main Console Surface */
@@ -315,14 +444,15 @@
       width: 160px;
       height: 160px;
       border-radius: 50%;
-      background: radial-gradient(circle at 50% 50%, #24262b 0%, #18191c 70%, #101113 100%);
-      border: 2px solid #2b2e35;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.12), inset 0 -2px 6px rgba(0, 0, 0, 0.8);
+      background: var(--bg-knob-outer);
+      border: 2px solid var(--border-knob);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.12);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: grab;
       position: relative;
+      transition: background 0.25s ease, border-color 0.25s ease;
     }
 
     .main-knob:active {
@@ -333,9 +463,9 @@
       width: 124px;
       height: 124px;
       border-radius: 50%;
-      background: radial-gradient(circle at 50% 50%, #121316 0%, #17181c 65%, #202227 100%);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8), inset 0 -1px 3px rgba(255, 255, 255, 0.04), 0 1px 2px rgba(255, 255, 255, 0.05);
+      background: var(--bg-knob-indent);
+      border: 1px solid var(--border-knob-indent);
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 -1px 3px rgba(255, 255, 255, 0.04);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -343,6 +473,7 @@
       text-align: center;
       padding: 4px 8px 0;
       pointer-events: none;
+      transition: background 0.25s ease, border-color 0.25s ease;
     }
 
     .knob-input-row {
@@ -361,7 +492,7 @@
       font-family: inherit;
       font-size: 26px;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-knob-num);
       font-variant-numeric: tabular-nums;
       text-align: center;
       line-height: 1;
@@ -369,7 +500,6 @@
       margin: 0;
       padding: 2px 2px;
       letter-spacing: -0.02em;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
       background: transparent;
       border: 1px dashed transparent;
       border-radius: 6px;
@@ -389,14 +519,14 @@
 
     .knob-val-input:hover {
       background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.25);
+      border-color: var(--color-border-hover);
     }
 
     .knob-val-input:focus {
-      background: #0d0f12;
-      border: 1px solid var(--green-evo);
-      box-shadow: 0 0 14px rgba(0, 234, 118, 0.35), inset 0 1px 3px rgba(0, 0, 0, 0.8);
-      color: #fff !important;
+      background: var(--color-background);
+      border: 1px solid var(--color-accent);
+      box-shadow: 0 0 14px var(--color-accent-glow);
+      color: var(--text-main) !important;
       width: 84px;
     }
 
@@ -433,17 +563,17 @@
       gap: 8px;
       margin-top: -10px;
       margin-bottom: 22px;
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--steppers-bar-bg);
       padding: 4px 6px;
       border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--steppers-bar-border);
     }
 
     .step-btn {
-      background: #1a1b1e;
-      border: 1px solid #2d3036;
+      background: var(--step-btn-bg);
+      border: 1px solid var(--step-btn-border);
       border-radius: 10px;
-      color: #999;
+      color: var(--step-btn-color);
       font-size: 11px;
       font-weight: 700;
       padding: 5px 10px;
@@ -453,16 +583,16 @@
     }
 
     .step-btn:hover {
-      background: #25272c;
-      color: #fff;
-      border-color: #444852;
+      background: var(--step-btn-hover-bg);
+      color: var(--step-btn-hover-color);
+      border-color: var(--color-border-hover);
     }
 
     .step-btn:active {
       transform: scale(0.94);
-      background: #2c2f36;
-      color: var(--green-evo);
-      border-color: var(--green-evo);
+      background: var(--step-btn-hover-bg);
+      color: var(--color-accent);
+      border-color: var(--color-accent);
     }
 
     /* Middle Row: Channels & Center Icons */
@@ -508,13 +638,13 @@
     }
 
     .mini-dial-track {
-      stroke: #2c2e33;
+      stroke: var(--mini-dial-track);
       fill: none;
       stroke-width: 4;
     }
 
     .mini-dial-bar {
-      stroke: var(--green-evo);
+      stroke: var(--color-accent);
       fill: none;
       stroke-width: 4;
       stroke-linecap: round;
@@ -525,27 +655,27 @@
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: radial-gradient(circle at 40% 40%, #2f3136 0%, #18191c 100%);
-      border: 1px solid #3c3e44;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+      background: var(--mini-knob-bg);
+      border: 1px solid var(--mini-knob-border);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       position: relative;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
     .channel-unit.active .mini-knob {
-      border-color: var(--green-evo);
-      box-shadow: 0 0 12px rgba(0, 234, 118, 0.4);
+      border-color: var(--color-accent);
+      box-shadow: 0 0 12px var(--color-accent-glow);
     }
 
     .channel-num-label {
       font-size: 13px;
       font-weight: 700;
-      color: #aaa;
+      color: var(--color-muted);
       transition: color 0.2s;
     }
 
     .channel-unit.active .channel-num-label {
-      color: #fff;
+      color: var(--text-main);
     }
 
     /* Channel Sub-buttons (48V & Mute) */
@@ -558,22 +688,22 @@
       width: 34px;
       height: 34px;
       border-radius: 50%;
-      background: #1a1b1e;
-      border: 1px solid #2f3136;
-      color: #777;
+      background: var(--btn-round-bg);
+      border: 1px solid var(--btn-round-border);
+      color: var(--btn-round-color);
       font-size: 11px;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
       transition: all 0.15s ease;
     }
 
     .round-btn:hover {
-      background: #24262b;
-      color: #bbb;
+      background: var(--btn-round-hover-bg);
+      color: var(--btn-round-hover-color);
     }
 
     .round-btn:active {
@@ -616,14 +746,14 @@
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      background: #18191c;
-      border: 1px solid #2c2e33;
+      background: var(--btn-round-bg);
+      border: 1px solid var(--btn-round-border);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #666;
+      color: var(--btn-round-color);
       cursor: pointer;
-      box-shadow: inset 0 1px 2px rgba(255,255,255,0.05), 0 3px 6px rgba(0,0,0,0.5);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.05), 0 3px 6px rgba(0,0,0,0.2);
       transition: all 0.15s ease;
     }
 
@@ -634,15 +764,15 @@
     }
 
     .center-btn:hover {
-      background: #222428;
-      color: #aaa;
+      background: var(--btn-round-hover-bg);
+      color: var(--btn-round-hover-color);
     }
 
     .center-btn.active {
-      border-color: var(--green-evo);
-      color: var(--green-evo);
-      background: #15291d;
-      box-shadow: 0 0 10px rgba(0, 234, 118, 0.4);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--btn-round-hover-bg);
+      box-shadow: 0 0 10px var(--color-accent-glow);
     }
 
     #btn-master-mute.active {
@@ -666,19 +796,19 @@
       left: 16px;
       right: 16px;
       padding: 7px 12px;
-      background: rgba(22, 23, 26, 0.96);
-      border: 1px solid #3c3e44;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
       border-radius: 8px;
       font-size: 11px;
       font-weight: 600;
-      color: #fff;
+      color: var(--text-main);
       text-align: center;
       opacity: 0;
       transform: translateY(-8px);
       transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
       pointer-events: none;
       z-index: 100;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
 
     .toast-banner.show {
@@ -692,8 +822,8 @@
     }
 
     .toast-banner.info {
-      border-color: var(--green-evo);
-      color: var(--green-evo);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
     }
 
     /* Bottom SmartGain Pill */
@@ -701,20 +831,20 @@
       width: 160px;
       height: 38px;
       border-radius: 19px;
-      background: var(--green-smartgain);
+      background: var(--color-accent);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 6px 16px rgba(53, 199, 89, 0.35);
+      box-shadow: 0 6px 16px var(--color-accent-glow);
       border: none;
       transition: all 0.2s ease;
       margin-bottom: 18px;
     }
 
     .smartgain-pill:hover {
-      background: #39db62;
-      box-shadow: 0 6px 20px rgba(53, 199, 89, 0.5);
+      background: var(--color-accent-light);
+      box-shadow: 0 6px 20px var(--color-accent-glow);
       transform: translateY(-1px);
     }
 
@@ -724,12 +854,11 @@
 
     .smartgain-pill.busy {
       animation: pulse-smartgain 1.2s infinite alternate;
-      background: #28a745;
     }
 
     @keyframes pulse-smartgain {
-      from { box-shadow: 0 0 10px rgba(53, 199, 89, 0.4); }
-      to { box-shadow: 0 0 25px rgba(53, 199, 89, 0.9); }
+      from { box-shadow: 0 0 10px var(--color-accent-glow); }
+      to { box-shadow: 0 0 25px var(--color-accent-glow); }
     }
 
     .smartgain-pill svg {
@@ -744,18 +873,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.35;
+      opacity: 0.4;
       transition: opacity 0.2s;
     }
 
     .evo-logo:hover {
-      opacity: 0.7;
+      opacity: 0.8;
     }
 
     .evo-logo svg {
       width: 26px;
       height: 26px;
-      fill: #fff;
+      fill: var(--color-muted);
     }
   </style>
 </head>
@@ -795,6 +924,10 @@
       </div>
       <div class="window-title" id="title-text">EVO Control — EVO 4</div>
       <div class="titlebar-right">
+        <button class="theme-toggle-btn" id="theme-toggle-btn" title="Alternar tema: EVO Oficial / Arsian">
+          <span class="theme-toggle-dot"></span>
+          <span class="theme-toggle-label" id="theme-toggle-label">EVO</span>
+        </button>
         <button class="qr-btn" id="open-qr-btn" title="Escanear QR para abrir en el celular">
           <svg viewBox="0 0 24 24">
             <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm-5 2h3v2h-3v-2zm2 2h3v2h-3v-2zm3 2h3v2h-3v-2zm-5 0h2v2h-2v-2zm2-4h2v2h-2v-2z"/>
@@ -924,6 +1057,45 @@
   </div>
 
   <script>
+    // Theme Management (EVO Default vs Brand Arsian)
+    const THEME_STORAGE_KEY = "evo_ui_theme";
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    const themeToggleLabel = document.getElementById("theme-toggle-label");
+
+    function getStoredTheme() {
+      try {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        if (saved === "brand" || saved === "evo") return saved;
+      } catch (_) {}
+      return "evo";
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      document.body.setAttribute("data-theme", theme);
+      const evoWindow = document.querySelector(".evo-window");
+      if (evoWindow) evoWindow.setAttribute("data-theme", theme);
+      if (themeToggleLabel) {
+        themeToggleLabel.textContent = theme === "brand" ? "Arsian" : "EVO";
+      }
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (_) {}
+      if (typeof updateUI === "function") {
+        updateUI();
+      }
+    }
+
+    let currentTheme = getStoredTheme();
+    applyTheme(currentTheme);
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener("click", () => {
+        currentTheme = currentTheme === "evo" ? "brand" : "evo";
+        applyTheme(currentTheme);
+      });
+    }
+
     // State management
     let ws = null;
     let nextId = 1;
@@ -1018,7 +1190,7 @@
     function setKnobDisplay(text, color, unitDesc, unitSuffix) {
       if (!isEditingKnob && document.activeElement !== knobVal) {
         knobVal.value = text;
-        knobVal.style.color = color || "#fff";
+        knobVal.style.color = color || "var(--text-knob-num)";
       }
       if (unitDesc !== undefined && !isEditingKnob) {
         knobUnit.textContent = unitDesc;
@@ -1042,7 +1214,7 @@
             setKnobDisplay("MUTE", "var(--red-mute)", `CANAL ${chIdx + 1} • MUTE`, "");
             updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB), "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
           } else {
-            setKnobDisplay(ch.gain_db.toFixed(1), "#fff", `CANAL ${chIdx + 1} • GAIN`, "dB");
+            setKnobDisplay(ch.gain_db.toFixed(1), "var(--text-knob-num)", `CANAL ${chIdx + 1} • GAIN`, "dB");
             updateHaloRing((ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB));
           }
         }
@@ -1050,18 +1222,18 @@
       } else if (activeMode === "mix") {
         const pan = monitorMix.pan;
         if (Math.abs(pan) < 0.04) {
-          setKnobDisplay("50/50", "var(--green-evo)", "PLACA ↔ PC", "");
+          setKnobDisplay("50/50", "var(--color-accent)", "PLACA ↔ PC", "");
         } else if (pan < -0.04) {
           const placaPct = Math.round(((-pan) * 0.5 + 0.5) * 100);
           const pcPct = 100 - placaPct;
-          setKnobDisplay(`${placaPct}%`, "#fff", `PLACA ${placaPct}% • PC ${pcPct}%`, "IN");
+          setKnobDisplay(`${placaPct}%`, "var(--text-knob-num)", `PLACA ${placaPct}% • PC ${pcPct}%`, "IN");
         } else {
           const pcPct = Math.round(((pan) * 0.5 + 0.5) * 100);
           const placaPct = 100 - pcPct;
-          setKnobDisplay(`${pcPct}%`, "#fff", `PLACA ${placaPct}% • PC ${pcPct}%`, "PC");
+          setKnobDisplay(`${pcPct}%`, "var(--text-knob-num)", `PLACA ${placaPct}% • PC ${pcPct}%`, "PC");
         }
         const ratio = (pan + 1.0) / 2.0;
-        updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.6)");
+        updateHaloRing(ratio, "var(--color-accent)", "var(--color-accent-glow)");
         setStepperLabels(["-10%", "-5%", "+5%", "+10%"], [-0.20, -0.10, 0.10, 0.20]);
       } else if (activeMode === "out") {
         const vol = monitorMix.level_db;
@@ -1069,9 +1241,9 @@
           setKnobDisplay("MUTE", "var(--red-mute)", "SALIDA SILENCIADA", "");
           updateHaloRing(0, "var(--red-mute)", "rgba(255, 59, 48, 0.5)");
         } else {
-          setKnobDisplay(vol.toFixed(1), "#fff", "VOLUMEN SALIDA", "dB");
+          setKnobDisplay(vol.toFixed(1), "var(--text-knob-num)", "VOLUMEN SALIDA", "dB");
           const ratio = Math.max(0, Math.min(1, (vol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
-          updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.5)");
+          updateHaloRing(ratio, "var(--color-accent)", "var(--color-accent-glow)");
         }
         setStepperLabels(["-2 dB", "-0.5", "+0.5", "+2 dB"], [-2.0, -0.5, 0.5, 2.0]);
       }
@@ -1081,7 +1253,7 @@
       const circ = 125.6;
       const offset0 = circ * (1 - (channels[0].gain_db / MAX_DB));
       bar0.style.strokeDashoffset = offset0;
-      bar0.style.stroke = channels[0].muted ? "var(--red-mute)" : "var(--green-evo)";
+      bar0.style.stroke = channels[0].muted ? "var(--red-mute)" : "var(--color-accent)";
       document.getElementById("btn-48v-0").classList.toggle("active", !!channels[0].phantom);
       document.getElementById("btn-mute-0").classList.toggle("active", !!channels[0].muted);
 
@@ -1089,7 +1261,7 @@
       const bar1 = document.getElementById("mini-bar-1");
       const offset1 = circ * (1 - (channels[1].gain_db / MAX_DB));
       bar1.style.strokeDashoffset = offset1;
-      bar1.style.stroke = channels[1].muted ? "var(--red-mute)" : "var(--green-evo)";
+      bar1.style.stroke = channels[1].muted ? "var(--red-mute)" : "var(--color-accent)";
       document.getElementById("btn-48v-1").classList.toggle("active", !!channels[1].phantom);
       document.getElementById("btn-mute-1").classList.toggle("active", !!channels[1].muted);
 
@@ -1408,7 +1580,7 @@
         knobVal.value = newVol.toFixed(1);
         sendCmd({ op: "set_monitor_mix", out: 0, level_db: newVol, pan: monitorMix.pan });
         const ratio = Math.max(0, Math.min(1, (newVol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
-        updateHaloRing(ratio, "var(--green-evo)", "rgba(0, 234, 118, 0.5)");
+        updateHaloRing(ratio, "var(--color-accent)", "var(--color-accent-glow)");
       }
       knobVal.select();
     }
@@ -1428,7 +1600,7 @@
         knobVal.value = monitorMix.level_db.toFixed(1);
       }
       knobUnit.textContent = "ENTER: FIJAR • ESC: SALIR";
-      knobUnit.style.color = "var(--green-evo)";
+      knobUnit.style.color = "var(--color-accent)";
       requestAnimationFrame(() => knobVal.select());
     });
 
