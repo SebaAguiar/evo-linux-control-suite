@@ -245,8 +245,8 @@ fn run_alsa_listener(
             if numid == 3 {
                 // Mic Playback Volume (Ganancia canales 1 y 2)
                 if let Ok([val0, val1]) = alsa_read_numid(fd, 3) {
-                    let step0 = (val0.clamp(0, 50)) as u32;
-                    let step1 = (val1.clamp(0, 50)) as u32;
+                    let step0 = (val0.clamp(0, 116)) as u32;
+                    let step1 = (val1.clamp(0, 116)) as u32;
 
                     let mut changed_events = Vec::new();
                     {
