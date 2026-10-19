@@ -1,12 +1,9 @@
 name: Build Suite
 
 # ==============================================================================
-# IMPORTANTE: Desactivado automáticamente para push y pull_request.
-# NO consume minutos de GitHub Actions a menos que se dispare manualmente desde
-# la pestaña "Actions" -> "Build Suite" -> "Run workflow".
-#
-# Cuando el repositorio sea público / open source y desees CI automático,
-# descomenta las secciones `push:` y `pull_request:` a continuación.
+# GitHub Actions CI: Verificación, compilación y empaquetado para Linux x86_64.
+# Se ejecuta automáticamente en push y pull_request a `main` y `dev`,
+# y puede ejecutarse bajo demanda con parámetros personalizados en `workflow_dispatch`.
 # ==============================================================================
 on:
   workflow_dispatch:
@@ -27,11 +24,11 @@ on:
         type: boolean
         default: false
 
-  # push:
-  #   branches: [ main ]
-  #   tags: [ 'v*' ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [ main, dev ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, dev ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
