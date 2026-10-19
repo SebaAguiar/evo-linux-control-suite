@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import type { ActiveMode, ChannelState, MonitorMixState } from "../types";
 import { MIN_DB, MAX_DB, MIN_OUT_DB, MAX_OUT_DB } from "../hooks/useEvoSocket";
 
-const TOTAL_LEDS = 24;
+const TOTAL_LEDS = 19;
 
 interface MainDialProps {
   activeMode: ActiveMode;
@@ -85,7 +85,7 @@ export const MainDial: React.FC<MainDialProps> = ({
     }
   }, [currentInfo.text, isEditing]);
 
-  // Pre-calculate 24 halo dots
+  // Pre-calculate 19 halo dots matching exact Audient EVO 4 hardware
   const haloDots = useMemo(() => {
     const cx = 125;
     const cy = 125;
@@ -106,17 +106,17 @@ export const MainDial: React.FC<MainDialProps> = ({
   const activeLedCount = Math.round(currentInfo.ratio * TOTAL_LEDS);
   const haloColor = currentInfo.isMuted
     ? "var(--red-mute)"
-    : activeMode === "mix" || activeMode === "out"
+    : activeMode === "mix"
     ? "var(--color-accent)"
-    : "var(--led-active)";
+    : "#ffffff";
 
   const haloGlow = currentInfo.isMuted
-    ? "rgba(255, 59, 48, 0.5)"
-    : activeMode === "mix" || activeMode === "out"
+    ? "rgba(255, 59, 48, 0.6)"
+    : activeMode === "mix"
     ? "var(--color-accent-glow)"
-    : "var(--led-glow)";
+    : "rgba(255, 255, 255, 0.85)";
 
-  // Cómputo de vúmetro en dBFS (-60 a 0 dBFS)
+  // Cómputo de vúmetro en dBFS (-55 a 0 dBFS)
   const meterVal = meterDb ?? -128;
   const isMeterActive =
     (activeMode === "ch0" || activeMode === "ch1" || activeMode === "out") &&
@@ -124,8 +124,8 @@ export const MainDial: React.FC<MainDialProps> = ({
     !userAdjusting &&
     !isDragging &&
     !isEditing;
-  const meterRatio = Math.max(0, Math.min(1, (meterVal + 60) / 60));
-  const meterLedCount = isMeterActive ? Math.round(meterRatio * TOTAL_LEDS) : 0;
+  const meterRatio = Math.max(0, Math.min(1, (meterVal + 55) / 55));
+  const peakPos = meterRatio * (TOTAL_LEDS - 1);
 
   // Drag interaction
   const isDraggingRef = useRef(false);
@@ -347,22 +347,53 @@ export const MainDial: React.FC<MainDialProps> = ({
           let dotColor = "var(--led-inactive)";
           let dotGlow = "none";
 
-          if (isMeterActive && meterLedCount > 0) {
-            // Modo Vúmetro en Vivo:
-            if (idx < meterLedCount) {
-              // Gradiente VU clásico: Verde (0..15), Ámbar (16..21), Rojo de saturación (22..23)
-              dotColor = idx >= 22 ? "#ff3b30" : idx >= 16 ? "#ffcc00" : "var(--green-evo)";
-              dotGlow = `drop-shadow(0 0 5px ${dotColor})`;
+          if (isMeterActive && meterVal > -55) {
+            // Vúmetro orgánico Audient EVO 4 (19 LEDs blancos con intensidad y fade suave)
+            const dist = idx - peakPos;
+            let intensity = 0;
+
+            if (dist <= 0) {
+              const distBelow = -dist;
+              if (distBelow < 1.0) {
+                // Cabeza de pico actual: máxima intensidad brillante
+                intensity = 1.0;
+              } else if (distBelow <= 6.0) {
+                // Cola de desvanecimiento suave (fade out sutil)
+                intensity = Math.max(0, 1.0 - distBelow * 0.16);
+              } else {
+                // Hacia abajo se apaga (no prende todos los LEDs)
+                intensity = 0;
+              }
+            } else if (dist < 1.0) {
+              // Entrada suave al siguiente LED
+              intensity = (1.0 - dist) * 0.7;
+            }
+
+            if (intensity > 0) {
+              if (idx === TOTAL_LEDS - 1 && meterVal >= -0.5) {
+                // Clip / saturación en 0 dBFS (último LED en rojo de advertencia)
+                dotColor = "#ff3b30";
+                dotGlow = "drop-shadow(0 0 8px #ff3b30)";
+              } else {
+                // LED blanco puro con brillo e intensidad dinámica
+                dotColor = `rgba(255, 255, 255, ${Math.max(0.12, intensity)})`;
+                dotGlow =
+                  intensity > 0.5
+                    ? `drop-shadow(0 0 ${Math.round(7 * intensity)}px rgba(255, 255, 255, ${0.95 * intensity}))`
+                    : intensity > 0.2
+                    ? `drop-shadow(0 0 3px rgba(255, 255, 255, 0.6))`
+                    : "none";
+              }
             } else if (idx === activeLedCount - 1) {
-              // Marcador discreto del punto de ganancia ajustado
-              dotColor = "rgba(255, 255, 255, 0.5)";
+              // Marcador discreto del punto de ganancia/volumen ajustado
+              dotColor = "rgba(255, 255, 255, 0.35)";
               dotGlow = "none";
             }
           } else {
             // Modo Ajuste / Estático: arco de ganancia, volumen o balance
             const isActive = idx < activeLedCount;
             dotColor = isActive ? haloColor : "var(--led-inactive)";
-            dotGlow = isActive ? `drop-shadow(0 0 4px ${haloGlow})` : "none";
+            dotGlow = isActive ? `drop-shadow(0 0 5px ${haloGlow})` : "none";
           }
 
           return (
@@ -370,12 +401,12 @@ export const MainDial: React.FC<MainDialProps> = ({
               key={idx}
               cx={dot.x}
               cy={dot.y}
-              r={4.2}
+              r={4.8}
               className="halo-dot"
               fill={dotColor}
               style={{
                 filter: dotGlow,
-                transition: isMeterActive ? "fill 0.05s ease-out, filter 0.05s ease-out" : "none",
+                transition: isMeterActive ? "fill 0.07s ease-out, filter 0.07s ease-out" : "none",
               }}
             />
           );
