@@ -7,17 +7,18 @@
   "author": "David Sebastián Aguiar",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/arsian/evo-linux-control-suite.git"
+    "url": "git+https://github.com/SebaAguiar/evo-linux-control-suite.git"
   },
-  "homepage": "https://github.com/arsian/evo-linux-control-suite#readme",
+  "homepage": "https://github.com/SebaAguiar/evo-linux-control-suite#readme",
   "bugs": {
-    "url": "https://github.com/arsian/evo-linux-control-suite/issues"
+    "url": "https://github.com/SebaAguiar/evo-linux-control-suite/issues"
   },
   "type": "module",
   "scripts": {
     "prepare": "husky || true",
     "check": "cargo check --workspace --exclude evo-desktop",
     "test": "cargo test --workspace --exclude evo-desktop",
+    "desktop:check": "cargo check -p evo-desktop",
     "desktop:build": "cd apps/desktop && bun run build",
     "desktop:dev": "cd apps/desktop && bun run dev"
   },

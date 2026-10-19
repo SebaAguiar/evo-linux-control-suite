@@ -151,3 +151,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Tauri signing keys & secrets
+*.key
+*.key.pub
+.tauri/
