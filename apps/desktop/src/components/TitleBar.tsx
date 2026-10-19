@@ -1,6 +1,7 @@
 import React from "react";
 import type { ConnectionStatus } from "../types";
 import type { UpdateInfo } from "../hooks/useUpdater";
+import type { Theme } from "../hooks/useTheme";
 
 interface TitleBarProps {
   connStatus: ConnectionStatus;
@@ -9,6 +10,8 @@ interface TitleBarProps {
   downloading?: boolean;
   progress?: number;
   onDownloadUpdate?: () => void;
+  theme?: Theme;
+  onToggleTheme?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
@@ -18,6 +21,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   downloading = false,
   progress = 0,
   onDownloadUpdate,
+  theme = "evo",
+  onToggleTheme,
 }) => {
   const connClass =
     connStatus === "connected"
@@ -65,6 +70,21 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                 ? `Actualizando ${progress}%`
                 : `Actualizar (v${updateInfo.version})`}
             </span>
+          </button>
+        )}
+
+        {onToggleTheme && (
+          <button
+            className={`theme-toggle-btn ${theme === "brand" ? "theme-brand" : "theme-evo"}`}
+            onClick={onToggleTheme}
+            title={
+              theme === "evo"
+                ? "Paleta actual: Oficial EVO (Haz clic para cambiar a Marca Arsian)"
+                : "Paleta actual: Marca Arsian (Haz clic para cambiar a Oficial EVO)"
+            }
+          >
+            <span className="theme-toggle-dot" />
+            <span className="theme-toggle-label">{theme === "evo" ? "EVO" : "Arsian"}</span>
           </button>
         )}
 

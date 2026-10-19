@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import type { ActiveMode } from "./types";
 import { useEvoSocket } from "./hooks/useEvoSocket";
 import { useUpdater } from "./hooks/useUpdater";
+import { useTheme } from "./hooks/useTheme";
 import { TitleBar } from "./components/TitleBar";
 import { MainDial } from "./components/MainDial";
 import { SteppersBar } from "./components/SteppersBar";
@@ -15,6 +16,7 @@ export function App() {
   const [activeMode, setActiveMode] = useState<ActiveMode>("ch0");
   const [isQrOpen, setIsQrOpen] = useState(false);
 
+  const { theme, toggleTheme } = useTheme();
   const updater = useUpdater();
 
   const {
@@ -101,7 +103,7 @@ export function App() {
   }, [showToast]);
 
   return (
-    <div className="evo-window">
+    <div className="evo-window" data-theme={theme}>
       <ToastBanner toast={toast} />
       <QrModal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />
 
@@ -112,6 +114,8 @@ export function App() {
         downloading={updater.downloading}
         progress={updater.progress}
         onDownloadUpdate={updater.downloadAndInstall}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <div className="evo-surface-viewport">

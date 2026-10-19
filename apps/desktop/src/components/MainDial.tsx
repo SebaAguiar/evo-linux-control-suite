@@ -32,29 +32,29 @@ export const MainDial: React.FC<MainDialProps> = ({
     if (activeMode === "ch0" || activeMode === "ch1") {
       const chIdx = activeMode === "ch0" ? 0 : 1;
       const ch = channels[chIdx];
-      if (!ch) return { text: "0.0", color: "#fff", unit: "dB", desc: `CANAL ${chIdx + 1} • GAIN`, ratio: 0, isMuted: false };
+      if (!ch) return { text: "0.0", color: "var(--text-knob-num)", unit: "dB", desc: `CANAL ${chIdx + 1} • GAIN`, ratio: 0, isMuted: false };
 
       const ratio = Math.max(0, Math.min(1, (ch.gain_db - MIN_DB) / (MAX_DB - MIN_DB)));
       if (ch.muted) {
         return { text: "MUTE", color: "var(--red-mute)", unit: "", desc: `CANAL ${chIdx + 1} • MUTE`, ratio, isMuted: true };
       }
-      return { text: ch.gain_db.toFixed(1), color: "#fff", unit: "dB", desc: `CANAL ${chIdx + 1} • GAIN`, ratio, isMuted: false };
+      return { text: ch.gain_db.toFixed(1), color: "var(--text-knob-num)", unit: "dB", desc: `CANAL ${chIdx + 1} • GAIN`, ratio, isMuted: false };
     }
 
     if (activeMode === "mix") {
       const pan = monitorMix.pan;
       const ratio = (pan + 1.0) / 2.0;
       if (Math.abs(pan) < 0.04) {
-        return { text: "50/50", color: "var(--green-evo)", unit: "", desc: "PLACA ↔ PC", ratio, isMuted: false };
+        return { text: "50/50", color: "var(--color-accent)", unit: "", desc: "PLACA ↔ PC", ratio, isMuted: false };
       }
       if (pan < -0.04) {
         const placaPct = Math.round(((-pan) * 0.5 + 0.5) * 100);
         const pcPct = 100 - placaPct;
-        return { text: `${placaPct}%`, color: "#fff", unit: "IN", desc: `PLACA ${placaPct}% • PC ${pcPct}%`, ratio, isMuted: false };
+        return { text: `${placaPct}%`, color: "var(--text-knob-num)", unit: "IN", desc: `PLACA ${placaPct}% • PC ${pcPct}%`, ratio, isMuted: false };
       }
       const pcPct = Math.round(((pan) * 0.5 + 0.5) * 100);
       const placaPct = 100 - pcPct;
-      return { text: `${pcPct}%`, color: "#fff", unit: "PC", desc: `PLACA ${placaPct}% • PC ${pcPct}%`, ratio, isMuted: false };
+      return { text: `${pcPct}%`, color: "var(--text-knob-num)", unit: "PC", desc: `PLACA ${placaPct}% • PC ${pcPct}%`, ratio, isMuted: false };
     }
 
     // activeMode === "out"
@@ -63,7 +63,7 @@ export const MainDial: React.FC<MainDialProps> = ({
       return { text: "MUTE", color: "var(--red-mute)", unit: "", desc: "SALIDA SILENCIADA", ratio: 0, isMuted: true };
     }
     const ratio = Math.max(0, Math.min(1, (vol - MIN_OUT_DB) / (MAX_OUT_DB - MIN_OUT_DB)));
-    return { text: vol.toFixed(1), color: "#fff", unit: "dB", desc: "VOLUMEN SALIDA", ratio, isMuted: false };
+    return { text: vol.toFixed(1), color: "var(--text-knob-num)", unit: "dB", desc: "VOLUMEN SALIDA", ratio, isMuted: false };
   }, [activeMode, channels, monitorMix]);
 
   // Sync displayed value when not editing
@@ -95,13 +95,13 @@ export const MainDial: React.FC<MainDialProps> = ({
   const haloColor = currentInfo.isMuted
     ? "var(--red-mute)"
     : activeMode === "mix" || activeMode === "out"
-    ? "var(--green-evo)"
+    ? "var(--color-accent)"
     : "var(--led-active)";
 
   const haloGlow = currentInfo.isMuted
     ? "rgba(255, 59, 48, 0.5)"
     : activeMode === "mix" || activeMode === "out"
-    ? "rgba(0, 234, 118, 0.6)"
+    ? "var(--color-accent-glow)"
     : "var(--led-glow)";
 
   // Drag interaction
@@ -377,7 +377,7 @@ export const MainDial: React.FC<MainDialProps> = ({
 
           <div
             className="knob-unit-text"
-            style={{ color: isEditing ? "var(--green-evo)" : "var(--text-muted)" }}
+            style={{ color: isEditing ? "var(--color-accent)" : "var(--color-muted)" }}
           >
             {isEditing ? "ENTER: FIJAR • ESC: SALIR" : currentInfo.desc}
           </div>
