@@ -1260,15 +1260,16 @@
         }
 
         if (intensity > 0) {
-          dot.setAttribute("fill", "#ffffff");
+          const vuColor = idx >= 17 ? "#ff3b30" : idx >= 13 ? "#ffcc00" : "var(--green-evo)";
+          dot.setAttribute("fill", vuColor);
           dot.style.opacity = idx <= 4 ? "1.0" : Math.max(0.20, Math.min(1.0, intensity)).toFixed(2);
           dot.style.filter =
             idx <= 4
-              ? "drop-shadow(0 0 6px rgba(255, 255, 255, 1.0)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.7))"
+              ? `drop-shadow(0 0 6px ${vuColor}) drop-shadow(0 0 10px ${vuColor})`
               : intensity >= 0.6
-              ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.8))"
+              ? `drop-shadow(0 0 5px ${vuColor})`
               : intensity >= 0.35
-              ? "drop-shadow(0 0 3px rgba(255, 255, 255, 0.5))"
+              ? `drop-shadow(0 0 3px ${vuColor})`
               : "none";
         } else {
           dot.setAttribute("fill", "var(--led-inactive)");

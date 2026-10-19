@@ -138,15 +138,15 @@ export const MainDial: React.FC<MainDialProps> = ({
   const activeLedCount = Math.round(currentInfo.ratio * TOTAL_LEDS);
   const haloColor = currentInfo.isMuted
     ? "var(--red-mute)"
-    : activeMode === "mix"
+    : activeMode === "mix" || activeMode === "out"
     ? "var(--color-accent)"
-    : "#ffffff";
+    : "var(--led-active)";
 
   const haloGlow = currentInfo.isMuted
     ? "rgba(255, 59, 48, 0.6)"
-    : activeMode === "mix"
+    : activeMode === "mix" || activeMode === "out"
     ? "var(--color-accent-glow)"
-    : "rgba(255, 255, 255, 0.85)";
+    : "var(--led-glow)";
 
   // Drag interaction
   const isDraggingRef = useRef(false);
@@ -394,27 +394,22 @@ export const MainDial: React.FC<MainDialProps> = ({
             }
 
             if (intensity > 0) {
-              if (idx === TOTAL_LEDS - 1 && meterVal >= -0.5) {
-                // Clip / saturación en 0 dBFS (último LED en rojo de advertencia)
-                dotColor = "#ff3b30";
-                dotOpacity = 1.0;
-                dotGlow = "drop-shadow(0 0 8px #ff3b30)";
-              } else {
-                // Blanco puro con opacidad e intensidad gradual
-                dotColor = "#ffffff";
-                dotOpacity = idx <= 4 ? 1.0 : Math.max(0.20, Math.min(1.0, intensity));
-                dotGlow =
-                  idx <= 4
-                    ? "drop-shadow(0 0 6px rgba(255, 255, 255, 1.0)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.7))"
-                    : intensity >= 0.6
-                    ? "drop-shadow(0 0 5px rgba(255, 255, 255, 0.8))"
-                    : intensity >= 0.35
-                    ? "drop-shadow(0 0 3px rgba(255, 255, 255, 0.5))"
-                    : "none";
-              }
+              // Color clásico de vúmetro: Verde base (0..12), Ámbar advertencia (13..16), Rojo pico/clip (17..18)
+              const vuColor =
+                idx >= 17 ? "#ff3b30" : idx >= 13 ? "#ffcc00" : "var(--green-evo)";
+              dotColor = vuColor;
+              dotOpacity = idx <= 4 ? 1.0 : Math.max(0.20, Math.min(1.0, intensity));
+              dotGlow =
+                idx <= 4
+                  ? `drop-shadow(0 0 6px ${vuColor}) drop-shadow(0 0 10px ${vuColor})`
+                  : intensity >= 0.6
+                  ? `drop-shadow(0 0 5px ${vuColor})`
+                  : intensity >= 0.35
+                  ? `drop-shadow(0 0 3px ${vuColor})`
+                  : "none";
             } else if (idx === activeLedCount - 1) {
               // Marcador discreto del punto de ajuste fijado en el knob
-              dotColor = "#ffffff";
+              dotColor = haloColor;
               dotOpacity = 0.35;
               dotGlow = "none";
             }
