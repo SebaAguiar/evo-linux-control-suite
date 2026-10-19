@@ -1,0 +1,1179 @@
+---
+import deck from "../assets/screenshots/deck.png";
+import controllerMobile from "../assets/screenshots/controller-mobile.png";
+import "../styles/design.css";
+import "../styles/landing.css";
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+const title = "EVO Linux Control Suite — Control de Audient EVO en Linux";
+const description =
+  "Controla ganancia, 48 V y monitoreo de tu Audient EVO 4, 8 y 16 en Linux, también desde el móvil. Open source, sin telemetría.";
+const canonical = "https://sebaaguiar.github.io/evo-linux-control-suite/";
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>{title}</title>
+  </head>
+  <body>
+          <div class="site">
+            <header class="navbar">
+              <a class="brand" href="#inicio"
+                ><span class="brand-mark"
+                  ><span class="brand-tick"></span
+                  ><span class="brand-core"></span></span
+                ><span>EVO <b>Linux Control Suite</b></span
+                ><small>by Arsian</small></a
+              >
+              <nav class="nav-links">
+                <a href="#caracteristicas">Características</a
+                ><a href="#control-remoto">Control remoto</a
+                ><a href="#compatibilidad">Compatibilidad</a
+                ><a href="#instalacion">Instalación</a><a href="#faq">FAQ</a>
+              </nav>
+              <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Cambiar paleta" aria-pressed="false">
+                  <i></i><span>Arsian Dark</span></button
+                ><a
+                  class="button button-ghost github-button"
+                  href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                  ><svg
+                    aria-hidden="true"
+                    class="icon"
+                    width="17"
+                    height="17"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M15 22v-3.9c.04-1-.35-1.96-1-2.6 3.28-.36 6.72-1.61 6.72-7.25A5.67 5.67 0 0 0 19.22 4.3 5.3 5.3 0 0 0 19.08.4S17.9.02 15 1.9a13.4 13.4 0 0 0-7 0C5.1.02 3.92.4 3.92.4a5.3 5.3 0 0 0-.14 3.9 5.67 5.67 0 0 0-1.5 3.95c0 5.63 3.44 6.88 6.72 7.25a3.4 3.4 0 0 0-1 2.6V22"
+                    ></path>
+                  </svg>
+                  GitHub</a
+                ><a class="button button-primary nav-download" href="#instalacion"
+                  >Descargar v1.0.0</a
+                ><button class="menu-button" aria-label="Abrir menú" aria-expanded="false">
+                  <svg
+                    aria-hidden="true"
+                    class="icon"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M4 7h16M4 12h16M4 17h16"></path>
+                  </svg>
+                </button>
+              </div>
+            </header>
+            <main>
+              <section class="hero" id="inicio">
+                <div class="hero-grid"></div>
+                <div class="hero-copy reveal visible">
+                  <div class="release-badge">
+                    <span>v1.0.0 estable</span><i></i> Compatible con PipeWire y
+                    JACK
+                  </div>
+                  <h1>
+                    El control total de tu Audient EVO, <em>ahora en Linux.</em>
+                  </h1>
+                  <p>
+                    Ajusta la ganancia de tus preamps, activa 48V, silencia canales
+                    y controla tu mezcla de monitoreo desde el escritorio o desde tu
+                    móvil. Ligero, rápido y 100% open source.
+                  </p>
+                  <div class="hero-actions">
+                    <a
+                      class="button button-primary button-large"
+                      href="https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest"
+                      ><svg
+                        aria-hidden="true"
+                        class="icon"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M12 3v12M7 10l5 5 5-5"></path>
+                        <path d="M5 21h14"></path></svg
+                      >Descargar para Linux</a
+                    ><a class="button button-ghost button-large" href="#instalacion"
+                      ><svg
+                        aria-hidden="true"
+                        class="icon"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="m4 6 5 5-5 5M12 18h8"></path></svg
+                      >Instalar con un comando</a
+                    >
+                  </div>
+                  <div class="microcopy">
+                    <span>Gratis</span><i></i><span>Código abierto</span><i></i
+                    ><span>Sin telemetría</span>
+                  </div>
+                </div>
+                <div class="hero-visual reveal visible">
+                  <figure class="app-window app-window--shot">
+                    <div class="window-top">
+                      <div class="traffic"><i></i><i></i><i></i></div>
+                      <span>EVO Linux Control Suite</span
+                      ><span class="online"><i></i> EVO 4</span>
+                    </div>
+                    <div class="window-body window-body--shot">
+                      <img
+                        src={deck.src}
+                        width="1240"
+                        height="720"
+                        decoding="async"
+                        alt="Deck de escritorio de EVO Linux Control Suite: ganancia, 48 V y medidor del canal 1 de una Audient EVO 4"
+                      />
+                    </div>
+                  </figure>
+                  <div class="sync-line">
+                    <i></i><span><b></b> CONECTADO</span>
+                  </div>
+                  <figure class="phone phone--shot">
+                    <div class="phone-bar"></div>
+                    <div class="phone-screen phone-screen--shot">
+                      <img
+                        src={controllerMobile.src}
+                        width="780"
+                        height="1688"
+                        loading="lazy"
+                        decoding="async"
+                        alt="Controlador web de EVO Suite en un móvil, con el dial de ganancia del canal 1"
+                      />
+                    </div>
+                  </figure>
+                </div>
+                <div class="distros reveal">
+                  <span>Funciona donde tú trabajas</span><b><i></i>ARCH</b
+                  ><b><i></i>UBUNTU</b><b><i></i>DEBIAN</b><b><i></i>FEDORA</b
+                  ><b><i></i>openSUSE</b><b><i></i>SteamOS</b>
+                </div>
+              </section>
+              <section class="section compare-section">
+                <div class="container">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">EL CONTROL QUE FALTABA</span>
+                    <h2>Linux merecía su propio panel de control</h2>
+                    <p>
+                      Audient no ofrece software oficial para Linux. Nosotros lo
+                      construimos.
+                    </p>
+                  </div>
+                  <div class="compare-grid">
+                    <article class="compare-card before reveal">
+                      <div class="card-label">
+                        <span>ANTES</span><small>Sin EVO Suite</small>
+                      </div>
+                      <ul>
+                        <li><i>×</i>Ajustes a ciegas con perillas físicas</li>
+                        <li><i>×</i>Sin lectura exacta de dB en pantalla</li>
+                        <li>
+                          <i>×</i>Smartgain y monitoreo solo con la interfaz en la
+                          mano
+                        </li>
+                        <li><i>×</i>Cero soporte para Linux</li>
+                      </ul>
+                    </article>
+                    <article class="compare-card after reveal">
+                      <div class="card-label">
+                        <span>AHORA</span><small><i></i> Con EVO Suite</small>
+                      </div>
+                      <ul>
+                        <li>
+                          <i
+                            ><svg
+                              aria-hidden="true"
+                              class="icon"
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="m5 12 4 4L19 6"></path></svg></i
+                          >Lectura exacta y control bidireccional instantáneo por
+                          USB
+                        </li>
+                        <li>
+                          <i
+                            ><svg
+                              aria-hidden="true"
+                              class="icon"
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="m5 12 4 4L19 6"></path></svg></i
+                          >Daemon liviano (~6 MB de RAM) integrado con systemd
+                        </li>
+                        <li>
+                          <i
+                            ><svg
+                              aria-hidden="true"
+                              class="icon"
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="m5 12 4 4L19 6"></path></svg></i
+                          >Control inalámbrico desde cualquier móvil, tablet o
+                          laptop
+                        </li>
+                        <li>
+                          <i
+                            ><svg
+                              aria-hidden="true"
+                              class="icon"
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="m5 12 4 4L19 6"></path></svg></i
+                          >Software abierto, hecho por y para la comunidad
+                        </li>
+                      </ul>
+                    </article>
+                  </div>
+                </div>
+              </section>
+              <section class="section remote-section" id="control-remoto">
+                <div class="container">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">CONTROL REMOTO · PWA</span>
+                    <h2>Controla tu interfaz desde donde estés grabando</h2>
+                    <p>
+                      Ajusta ganancia, 48V y mutes desde tu móvil sin levantarte del
+                      micrófono ni de la batería.
+                    </p>
+                  </div>
+                  <div class="remote-layout">
+                    <div class="steps reveal">
+                      <div class="step">
+                        <span>01</span>
+                        <div>
+                          <h3>Abre la app</h3>
+                          <p>
+                            El daemon crea un servidor local seguro en tiempo real.
+                          </p>
+                        </div>
+                      </div>
+                      <div class="step">
+                        <span>02</span>
+                        <div>
+                          <h3>Escanea el QR</h3>
+                          <p>
+                            Apunta la cámara al código en pantalla. Sin escribir IPs
+                            ni puertos.
+                          </p>
+                        </div>
+                      </div>
+                      <div class="step">
+                        <span>03</span>
+                        <div>
+                          <h3>Ajusta desde la cabina</h3>
+                          <p>
+                            Controla tus preamps en vivo desde cualquier navegador
+                            móvil.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="remote-visual reveal">
+                      <div class="qr-panel">
+                        <div class="qr-top">
+                          <span class="brand-mark"
+                            ><span class="brand-tick"></span
+                            ><span class="brand-core"></span></span
+                          ><span>Conectar dispositivo</span><i></i>
+                        </div>
+                        <div class="qr">
+                          <i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class=""></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class="on"></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class=""></i><i class="on"></i
+                          ><i class="on"></i><i class=""></i><i class="on"></i
+                          ><i class=""></i><i class="on"></i><i class=""></i
+                          ><i class="on"></i>
+                        </div>
+                        <strong>Escanea para conectar</strong
+                        ><small>evo.local:8080</small>
+                      </div>
+                      <div class="remote-wave"><i></i><i></i><i></i></div>
+                      <div class="phone phone-compact phone-compact--shot">
+                        <div class="phone-bar"></div>
+                        <div class="phone-screen phone-screen--shot">
+                          <img
+                            src={controllerMobile.src}
+                            width="780"
+                            height="1688"
+                            loading="lazy"
+                            decoding="async"
+                            alt="Controlador web móvil de EVO Suite mostrando el nivel de entrada y los controles de 48 V y mute"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="security-callout reveal">
+                    <svg
+                      aria-hidden="true"
+                      class="icon"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
+                      <path d="m9 12 2 2 4-4"></path>
+                    </svg>
+                    <div>
+                      <strong>Privado por diseño</strong
+                      ><span
+                        >Funciona solo en tu red local. Sin nube, sin cuentas, sin
+                        telemetría.</span
+                      >
+                    </div>
+                    <b>No requiere instalar ninguna app en el móvil (PWA)</b>
+                  </div>
+                </div>
+              </section>
+              <section class="section features-section" id="caracteristicas">
+                <div class="container">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">ARQUITECTURA SIN COMPROMISOS</span>
+                    <h2>Hecho para rendir en tiempo real</h2>
+                    <p>
+                      Tecnología moderna por debajo. Control familiar por encima.
+                    </p>
+                  </div>
+                  <div class="bento">
+                    <article class="feature-card reveal">
+                      <span class="feature-icon"
+                        ><svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                          <path
+                            d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"
+                          ></path></svg
+                      ></span>
+                      <h3>Driver nativo en Rust</h3>
+                      <p>
+                        Comunicación directa por USB HID. Reconexión en caliente y
+                        protección ante transitorios de relays.
+                      </p>
+                      <div class="code-detail"><i></i> evo-daemon <b>1.0.0</b></div>
+                    </article>
+                    <article class="feature-card reveal">
+                      <span class="feature-icon"
+                        ><svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="m12 2 9 5-9 5-9-5 9-5Z"></path>
+                          <path d="m3 12 9 5 9-5M3 17l9 5 9-5"></path></svg
+                      ></span>
+                      <h3>App de escritorio con Tauri v2</h3>
+                      <p>
+                        Ventana compacta y veloz con bandeja del sistema y
+                        actualizaciones automáticas.
+                      </p>
+                      <div class="mini-window">
+                        <i></i><i></i><i></i><span></span>
+                      </div>
+                    </article>
+                    <article class="feature-card feature-large reveal">
+                      <div>
+                        <span class="feature-icon"
+                          ><svg
+                            aria-hidden="true"
+                            class="icon"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"
+                            ></path>
+                            <path d="M1 14h6M9 8h6M17 16h6"></path></svg
+                        ></span>
+                        <h3>Control analógico preciso</h3>
+                        <p>
+                          Ganancia en pasos de 0.5 dB o 2.0 dB, phantom +48V por
+                          canal e inversión de fase.
+                        </p>
+                      </div>
+                      <div class="feature-dial">
+                        <div class="dial dial-small">
+                          <span
+                            class="dial-indicator"
+                            style="transform: rotate(81deg)"
+                            ><i></i></span
+                          ><span class="dial-cap"></span>
+                        </div>
+                        <strong>+48.0 <small>dB</small></strong>
+                      </div>
+                    </article>
+                    <article class="feature-card reveal">
+                      <span class="feature-icon"
+                        ><svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <rect x="8" y="2" width="8" height="6" rx="1"></rect>
+                          <rect x="2" y="16" width="8" height="6" rx="1"></rect>
+                          <rect x="14" y="16" width="8" height="6" rx="1"></rect>
+                          <path d="M12 8v4M6 16v-2h12v2"></path></svg
+                      ></span>
+                      <h3>Compatible con PipeWire y JACK</h3>
+                      <p>
+                        Convive con tu sistema de audio sin cortar streams, buffers
+                        ni sesiones ALSA.
+                      </p>
+                      <div class="compat-chips">
+                        <b>PW</b><b>JACK</b><b>ALSA</b>
+                      </div>
+                    </article>
+                    <article class="feature-card reveal">
+                      <span class="feature-icon"
+                        ><svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path
+                            d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"
+                          ></path></svg
+                      ></span>
+                      <h3>Dos paletas visuales</h3>
+                      <p>Arsian Dark o la paleta clásica EVO, con un clic.</p>
+                      <div class="palette-row"><i></i><i></i><i></i><i></i></div>
+                    </article>
+                    <article class="feature-card reveal">
+                      <span class="feature-icon"
+                        ><svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"></path></svg
+                      ></span>
+                      <h3>Cero bloatware</h3>
+                      <p>Menos de 8 MB de RAM y 0% de CPU en reposo.</p>
+                      <div class="stat-row">
+                        <span><b>~6</b> MB RAM</span><span><b>0</b>% CPU</span>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </section>
+              <section class="section hardware-section" id="compatibilidad">
+                <div class="container">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">HARDWARE COMPATIBLE</span>
+                    <h2>Soporte para la familia EVO</h2>
+                    <p>Una sola aplicación. Todo tu hardware de estudio.</p>
+                  </div>
+                  <div class="device-grid">
+                    <article class="device-card reveal">
+                      <div class="device-badge tested"><i></i>Probado</div>
+                      <div class="device-art">
+                        <div class="device-face">
+                          <div class="device-inputs"><i></i><i></i></div>
+                          <div class="device-knob"><span></span></div>
+                          <div class="device-led"></div>
+                        </div>
+                      </div>
+                      <h3>Audient EVO 4</h3>
+                      <p>
+                        2 entradas combinadas, 2 salidas, Smartgain y phantom
+                        independiente.
+                      </p>
+                      <a
+                        href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                        >Ver detalles
+                        <svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M5 12h14"></path>
+                          <path d="m13 6 6 6-6 6"></path></svg
+                      ></a>
+                    </article>
+                    <article class="device-card reveal">
+                      <div class="device-badge progress"><i></i>En desarrollo</div>
+                      <div class="device-art">
+                        <div class="device-face">
+                          <div class="device-inputs">
+                            <i></i><i></i><i></i><i></i>
+                          </div>
+                          <div class="device-knob"><span></span></div>
+                          <div class="device-led"></div>
+                        </div>
+                      </div>
+                      <h3>Audient EVO 8</h3>
+                      <p>
+                        Arquitectura preparada para 4 preamps y doble salida de
+                        auriculares.
+                      </p>
+                      <a
+                        href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                        >Ver detalles
+                        <svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M5 12h14"></path>
+                          <path d="m13 6 6 6-6 6"></path></svg
+                      ></a>
+                    </article>
+                    <article class="device-card reveal">
+                      <div class="device-badge early">
+                        <i></i>Soporte preliminar
+                      </div>
+                      <div class="device-art">
+                        <div class="device-face">
+                          <div class="device-inputs">
+                            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                          </div>
+                          <div class="device-knob"><span></span></div>
+                          <div class="device-led"></div>
+                        </div>
+                      </div>
+                      <h3>Audient EVO 16</h3>
+                      <p>Preamps multicanal y mapeo de E/S óptica.</p>
+                      <a
+                        href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                        >Ver detalles
+                        <svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M5 12h14"></path>
+                          <path d="m13 6 6 6-6 6"></path></svg
+                      ></a>
+                    </article>
+                  </div>
+                  <div class="tested-distros reveal">
+                    <span>Compatible con</span><b><i></i>Arch / CachyOS</b
+                    ><b><i></i>Ubuntu / Debian</b><b><i></i>Fedora</b
+                    ><b><i></i>openSUSE</b><b><i></i>SteamOS</b>
+                  </div>
+                  <p class="hardware-note">
+                    ¿Tienes un EVO 8 o 16?
+                    <a href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                      >Ayúdanos a probarlo en GitHub
+                      <svg
+                        aria-hidden="true"
+                        class="icon"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M5 12h14"></path>
+                        <path d="m13 6 6 6-6 6"></path></svg
+                    ></a>
+                  </p>
+                </div>
+              </section>
+              <section class="section install-section" id="instalacion">
+                <div class="container install-container">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">INSTALACIÓN RÁPIDA</span>
+                    <h2>De cero a funcionando en minutos</h2>
+                    <p>Elige tu formato. Nosotros nos ocupamos del resto.</p>
+                  </div>
+                  <div class="terminal-card reveal">
+                    <div class="terminal-top">
+                      <div class="traffic"><i></i><i></i><i></i></div>
+                      <span>install.sh — bash</span
+                      ><button aria-label="Copiar comando">
+                        <svg
+                          aria-hidden="true"
+                          class="icon"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                          <path
+                            d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"
+                          ></path></svg
+                        ><span>Copiar</span>
+                      </button>
+                    </div>
+                    <div class="terminal-command">
+                      <span>$</span><code>git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; ./scripts/install.sh</code>
+                    </div>
+                    <div class="terminal-output">
+                      <span>✓</span> EVO Linux Control Suite listo para instalar
+                    </div>
+                  </div>
+                  <div class="install-tabs reveal" role="tablist" aria-label="Formatos de instalación">
+                    <button class="active" role="tab" aria-selected="true"
+                      data-command="git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; ./scripts/install.sh"
+                      data-output="Clona, compila e instala daemon, servicio y app de escritorio">Instalador universal</button>
+                    <button role="tab" aria-selected="false"
+                      data-command="wget https://github.com/SebaAguiar/evo-linux-control-suite/releases/download/v1.0.0/EVO.Linux.Control.Suite_1.0.0_amd64.deb &amp;&amp; sudo apt install ./EVO.Linux.Control.Suite_1.0.0_amd64.deb"
+                      data-output="Paquete de escritorio instalado (el daemon va con el instalador universal)">Debian / Ubuntu (.deb)</button>
+                    <button role="tab" aria-selected="false"
+                      data-command="git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; cargo build --release -p evo-daemon"
+                      data-output="Requiere Rust y las dependencias del README; el binario queda en target/release/evo-daemon">Desde el código (Rust)</button>
+                  </div>
+                  <p class="install-note reveal">
+                    <svg
+                      aria-hidden="true"
+                      class="icon"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
+                      <path d="m9 12 2 2 4-4"></path></svg
+                    >El instalador configura una regla udev una sola vez. Después
+                    todo corre como servicio de usuario, sin root.
+                  </p>
+                </div>
+              </section>
+              <section class="section faq-section" id="faq">
+                <div class="container faq-layout">
+                  <div class="section-heading reveal">
+                    <span class="eyebrow">PREGUNTAS FRECUENTES</span>
+                    <h2>Todo lo que necesitas saber</h2>
+                    <p>
+                      ¿Aún tienes dudas? Abre un issue en GitHub y te ayudamos.
+                    </p>
+                  </div>
+                  <div class="accordion reveal">
+                    <div class="faq-item open">
+                      <button aria-expanded="true">
+                        <span>¿Necesita permisos de administrador?</span><i>+</i>
+                      </button>
+                      <div class="faq-answer">
+                        <p>
+                          Solo una vez, para instalar la regla udev. Luego el daemon
+                          y la app corren como servicio de usuario (systemctl
+                          --user).
+                        </p>
+                      </div>
+                    </div>
+                    <div class="faq-item">
+                      <button aria-expanded="false">
+                        <span>¿Reemplaza el driver de audio de mi sistema?</span
+                        ><i>+</i>
+                      </button>
+                      <div class="faq-answer">
+                        <p>
+                          No. El audio sigue pasando por los drivers USB estándar de
+                          Linux (ALSA/PipeWire/JACK). EVO Suite solo controla
+                          ganancias, 48V, mutes y medidores.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="faq-item">
+                      <button aria-expanded="false">
+                        <span>¿Tengo que instalar una app en el móvil?</span
+                        ><i>+</i>
+                      </button>
+                      <div class="faq-answer">
+                        <p>
+                          No. El control remoto funciona como PWA en cualquier
+                          navegador moderno (Chrome, Safari, Firefox).
+                        </p>
+                      </div>
+                    </div>
+                    <div class="faq-item">
+                      <button aria-expanded="false">
+                        <span>¿Puedo contribuir al código?</span><i>+</i>
+                      </button>
+                      <div class="faq-answer">
+                        <p>
+                          Sí. Es 100% open source, con arquitectura modular en Rust
+                          y TypeScript.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section class="final-cta">
+                <div class="cta-panel reveal">
+                  <div>
+                    <span class="eyebrow">TU ESTUDIO. TUS REGLAS.</span>
+                    <h2>Lleva tu Audient EVO en Linux al siguiente nivel.</h2>
+                  </div>
+                  <div class="cta-actions">
+                    <a
+                      class="button button-primary button-large"
+                      href="#instalacion"
+                      ><svg
+                        aria-hidden="true"
+                        class="icon"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M12 3v12M7 10l5 5 5-5"></path>
+                        <path d="M5 21h14"></path></svg
+                      >Descargar EVO Suite v1.0.0</a
+                    ><a
+                      class="text-link"
+                      href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                      ><svg
+                        aria-hidden="true"
+                        class="icon"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path
+                          d="M15 22v-3.9c.04-1-.35-1.96-1-2.6 3.28-.36 6.72-1.61 6.72-7.25A5.67 5.67 0 0 0 19.22 4.3 5.3 5.3 0 0 0 19.08.4S17.9.02 15 1.9a13.4 13.4 0 0 0-7 0C5.1.02 3.92.4 3.92.4a5.3 5.3 0 0 0-.14 3.9 5.67 5.67 0 0 0-1.5 3.95c0 5.63 3.44 6.88 6.72 7.25a3.4 3.4 0 0 0-1 2.6V22"
+                        ></path></svg
+                      >Ver en GitHub</a
+                    >
+                  </div>
+                </div>
+              </section>
+            </main>
+            <footer>
+              <div class="footer-main">
+                <div class="footer-brand">
+                  <a class="brand" href="#inicio"
+                    ><span class="brand-mark"
+                      ><span class="brand-tick"></span
+                      ><span class="brand-core"></span></span
+                    ><span>EVO <b>Linux Control Suite</b></span></a
+                  >
+                  <p>
+                    Control profesional para tu estudio Linux.<br />Libre, rápido y
+                    construido en comunidad.
+                  </p>
+                  <div class="footer-status">
+                    <i></i> Estado: operativo
+                  </div>
+                </div>
+                <div class="footer-col">
+                  <strong>Proyecto</strong
+                  ><a href="https://github.com/SebaAguiar/evo-linux-control-suite"
+                    >Repositorio</a
+                  ><a href="https://github.com/SebaAguiar/evo-linux-control-suite/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/SebaAguiar/evo-linux-control-suite/releases">Releases</a
+                  ><a href="https://github.com/SebaAguiar/evo-linux-control-suite/issues/new/choose">Reportar un bug</a>
+                </div>
+                <div class="footer-col">
+                  <strong>Comunidad</strong><a href="https://github.com/SebaAguiar/evo-linux-control-suite/issues">Issues</a
+                  ><a href="https://github.com/SebaAguiar">Arsian Studio</a><a href="https://github.com/SebaAguiar/evo-linux-control-suite/blob/main/README.md">Documentación</a>
+                </div>
+                <div class="footer-col">
+                  <strong>Créditos</strong>
+                  <p>Creado por<br /><b>Seba Aguiar / Arsian</b></p>
+                  <span>Hecho en Linux, para Linux.</span>
+                </div>
+              </div>
+              <div class="legal">
+                EVO Linux Control Suite es un proyecto independiente de código
+                abierto y no está afiliado ni respaldado por Audient. Audient y EVO
+                son marcas de sus respectivos dueños.<span
+                  >© {year} Arsian · MIT License</span
+                >
+              </div>
+            </footer>
+          </div>
+
+    <script>
+      // Paleta Arsian Dark <-> EVO Green
+      const site = document.querySelector(".site");
+      const themeButton = document.querySelector(".theme-toggle");
+      const themeLabel = themeButton?.querySelector("span");
+      const applyTheme = (green) => {
+        site?.classList.toggle("green-theme", green);
+        themeButton?.setAttribute("aria-pressed", String(green));
+        if (themeLabel) themeLabel.textContent = green ? "EVO Green" : "Arsian Dark";
+      };
+      applyTheme(localStorage.getItem("evo-theme") === "green");
+      themeButton?.addEventListener("click", () => {
+        const green = !site?.classList.contains("green-theme");
+        applyTheme(green);
+        localStorage.setItem("evo-theme", green ? "green" : "dark");
+      });
+
+      // Aparición al hacer scroll
+      const reveals = document.querySelectorAll(".reveal");
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              entry.target.classList.add("visible");
+              observer.unobserve(entry.target);
+            }
+          },
+          { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+        );
+        reveals.forEach((el) => observer.observe(el));
+      } else {
+        reveals.forEach((el) => el.classList.add("visible"));
+      }
+
+      // Menú móvil
+      const menuButton = document.querySelector(".menu-button");
+      const navLinks = document.querySelector(".nav-links");
+      menuButton?.addEventListener("click", () => {
+        const open = navLinks?.classList.toggle("open") ?? false;
+        menuButton.setAttribute("aria-expanded", String(open));
+        menuButton.setAttribute("aria-label", open ? "Cerrar menú" : "Abrir menú");
+      });
+      navLinks?.addEventListener("click", (event) => {
+        if (!event.target.closest("a")) return;
+        navLinks.classList.remove("open");
+        menuButton?.setAttribute("aria-expanded", "false");
+      });
+
+      // Acordeón FAQ
+      document.querySelectorAll(".faq-item button").forEach((button) => {
+        button.addEventListener("click", () => {
+          const item = button.closest(".faq-item");
+          const willOpen = !item.classList.contains("open");
+          item.parentElement
+            ?.querySelectorAll(".faq-item.open")
+            .forEach((other) => {
+              other.classList.remove("open");
+              other.querySelector("button")?.setAttribute("aria-expanded", "false");
+            });
+          item.classList.toggle("open", willOpen);
+          button.setAttribute("aria-expanded", String(willOpen));
+        });
+      });
+
+      // Instalación: pestañas + copiar
+      const tabs = Array.from(document.querySelectorAll(".install-tabs button"));
+      const command = document.querySelector(".terminal-command code");
+      const output = document.querySelector(".terminal-output");
+      const copyButton = document.querySelector(".terminal-top button");
+      const copyLabel = copyButton?.querySelector("span");
+
+      const selectTab = (tab) => {
+        tabs.forEach((t) => {
+          const active = t === tab;
+          t.classList.toggle("active", active);
+          t.setAttribute("aria-selected", String(active));
+        });
+        if (command && tab.dataset.command) command.textContent = tab.dataset.command;
+        if (output && tab.dataset.output) output.innerHTML = "<span>✓</span> " + tab.dataset.output;
+      };
+      tabs.forEach((tab) => tab.addEventListener("click", () => selectTab(tab)));
+
+      copyButton?.addEventListener("click", async () => {
+        if (!command) return;
+        const text = command.textContent.trim();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const area = document.createElement("textarea");
+          area.value = text;
+          area.style.position = "fixed";
+          area.style.opacity = "0";
+          document.body.append(area);
+          area.select();
+          document.execCommand("copy");
+          area.remove();
+        }
+        if (copyLabel) {
+          copyLabel.textContent = "Copiado";
+          setTimeout(() => (copyLabel.textContent = "Copiar"), 1800);
+        }
+      });
+    </script>
+  </body>
+</html>

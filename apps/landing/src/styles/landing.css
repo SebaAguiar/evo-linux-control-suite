@@ -1,0 +1,130 @@
+/* ---------------------------------------------------------------------------
+   Ajustes sobre el CSS original del diseño (src/styles/design.css).
+   El diseño trae mockups dibujados de la app; acá los reemplazamos por
+   capturas reales de EVO Linux Control Suite manteniendo la misma geometría.
+   --------------------------------------------------------------------------- */
+
+/* Marco de escritorio: la captura real del deck define el alto del marco. */
+.hero-visual {
+  height: 410px;
+}
+
+.app-window--shot {
+  width: 620px;
+  height: auto;
+}
+
+.app-window--shot .window-body--shot {
+  display: block;
+  height: auto;
+  padding: 0;
+  background: #0f1117;
+}
+
+.app-window--shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Marco del teléfono: proporción real del controlador (390 x 844). */
+.phone--shot {
+  width: 164px;
+  height: 338px;
+}
+
+.phone--shot .phone-bar {
+  display: none;
+}
+
+.phone--shot .phone-screen--shot {
+  overflow: hidden;
+  padding: 0;
+  background: #111827;
+}
+
+.phone--shot .phone-screen--shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+/* Sección de control remoto: misma captura real dentro del marco compacto. */
+.phone-compact--shot {
+  width: 160px;
+  height: 330px;
+}
+
+/* Tres formatos reales de instalación (no hay AUR ni AppImage publicados). */
+.install-tabs {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* El layout de dos columnas del diseño desborda al apilarse: la columna
+   apilada conserva el ancho de 580px del visual y corta el texto. */
+@media (max-width: 800px) {
+  .remote-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Entre 521 y 800px la ventana fija de 620px se sale del viewport y el
+   `scale(0.86)` del diseño queda anulado por `.reveal.visible`. */
+@media (max-width: 800px) and (min-width: 521px) {
+  .app-window--shot {
+    width: min(100%, 620px);
+  }
+
+  .hero-visual {
+    margin-bottom: 0;
+  }
+}
+
+/* Accesibilidad: foco visible coherente con la paleta. */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Respeta la preferencia de movimiento reducido. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-window--shot {
+    width: 610px;
+  }
+
+  .hero-visual {
+    height: 400px;
+  }
+
+  .phone--shot {
+    width: 150px;
+    height: 312px;
+  }
+
+  .phone-compact--shot {
+    width: 148px;
+    height: 305px;
+  }
+}
