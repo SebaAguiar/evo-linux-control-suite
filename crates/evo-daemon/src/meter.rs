@@ -77,6 +77,51 @@ pub fn detect_evo_node() -> Option<String> {
     candidates.into_iter().next()
 }
 
+/// Detecta el nombre de nodo de salida (sink / playback) en PipeWire correspondiente a la EVO.
+pub fn detect_evo_output_node() -> Option<String> {
+    let mut candidates = Vec::new();
+
+    if let Ok(output) = Command::new("pw-cli")
+        .args(["list-objects", "Node"])
+        .output()
+    {
+        if output.status.success() {
+            let out = String::from_utf8_lossy(&output.stdout);
+            for line in out.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("node.name = ") {
+                    let name = trimmed
+                        .trim_start_matches("node.name = ")
+                        .trim_matches('"');
+                    let lower = name.to_lowercase();
+                    if (lower.contains("evo4") || lower.contains("audient"))
+                        && (lower.contains("sink") || lower.contains("output"))
+                    {
+                        candidates.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // 1. Preferir el sink de auriculares/line out principal (no split)
+    if let Some(node) = candidates.iter().find(|c| c.contains("Headphones") && !c.contains(".split")) {
+        return Some(node.clone());
+    }
+
+    // 2. Preferir nodo de hardware crudo (ej. alsa_output.hw_EVO4_0)
+    if let Some(hw) = candidates.iter().find(|c| c.contains("hw_")) {
+        return Some(hw.clone());
+    }
+
+    // 3. Cualquier sink sin split
+    if let Some(node) = candidates.iter().find(|c| !c.contains(".split")) {
+        return Some(node.clone());
+    }
+
+    candidates.into_iter().next()
+}
+
 /// Lanza el subproceso de captura de audio crudo en modo pasivo.
 fn spawn_capture_child(target: Option<&str>, channels: u8) -> Result<Child, MeterError> {
     // 1. Intentar pw-record (nativo PipeWire, no intrusivo)
@@ -144,36 +189,103 @@ fn spawn_capture_child(target: Option<&str>, channels: u8) -> Result<Child, Mete
     cmd.spawn().map_err(|e| MeterError::Backend(e.to_string()))
 }
 
-/// Fuente de medidores derivada de la captura PCM real en segundo plano.
+fn spawn_meter_stream_reader(
+    mut stdout: std::process::ChildStdout,
+    stop: Arc<AtomicBool>,
+    shared_state: Arc<Mutex<([f32; 4], u16)>>,
+    shared_frame: Arc<Mutex<MeterFrame>>,
+    channel_offset: usize,
+    num_channels: usize,
+    thread_name: String,
+) -> JoinHandle<()> {
+    std::thread::Builder::new()
+        .name(thread_name)
+        .spawn(move || {
+            let bytes_per_frame = num_channels * 2;
+            let chunk_frames = 480;
+            let chunk_bytes = chunk_frames * bytes_per_frame;
+            let mut buf = vec![0u8; chunk_bytes];
+            let decay_step = 1.5;
+
+            while !stop.load(Ordering::Relaxed) {
+                if stdout.read_exact(&mut buf).is_err() {
+                    break;
+                }
+
+                let mut chunk_max = vec![0i16; num_channels];
+                for frame_slice in buf.chunks_exact(bytes_per_frame) {
+                    for (ch, sample_bytes) in frame_slice.chunks_exact(2).enumerate() {
+                        if ch < num_channels {
+                            let val = i16::from_le_bytes([sample_bytes[0], sample_bytes[1]]);
+                            let abs_val = if val == i16::MIN { i16::MAX } else { val.abs() };
+                            if abs_val > chunk_max[ch] {
+                                chunk_max[ch] = abs_val;
+                            }
+                        }
+                    }
+                }
+
+                if let Ok(mut state) = shared_state.lock() {
+                    for ch in 0..num_channels {
+                        let idx = channel_offset + ch;
+                        if idx < 4 {
+                            let max_val = chunk_max[ch];
+                            let db = if max_val <= 10 {
+                                -128.0
+                            } else {
+                                20.0 * ((max_val as f32) / 32767.0).log10()
+                            };
+
+                            let current = state.0[idx];
+                            if db > current {
+                                state.0[idx] = db;
+                            } else {
+                                state.0[idx] = (current - decay_step).max(db).max(-128.0);
+                            }
+                        }
+                    }
+                    state.1 = state.1.wrapping_add(1);
+                    let seq = state.1;
+                    let frame = MeterFrame::from_db_fs(seq, &state.0);
+                    if let Ok(mut f_lock) = shared_frame.lock() {
+                        *f_lock = frame;
+                    }
+                }
+            }
+        })
+        .unwrap()
+}
+
+/// Fuente de medidores derivada de la captura PCM real en segundo plano (entradas + salidas).
 pub struct PcmMeterSource {
-    target: Option<String>,
-    channels: u8,
+    input_target: Option<String>,
+    output_target: Option<String>,
     frame: Arc<Mutex<MeterFrame>>,
     stop: Arc<AtomicBool>,
-    child: Option<Child>,
-    thread: Option<JoinHandle<()>>,
+    children: Vec<Child>,
+    threads: Vec<JoinHandle<()>>,
 }
 
 impl PcmMeterSource {
     pub fn new() -> Self {
         Self {
-            target: detect_evo_node(),
-            channels: 2,
-            frame: Arc::new(Mutex::new(MeterFrame::silent(0, 2))),
+            input_target: detect_evo_node(),
+            output_target: detect_evo_output_node(),
+            frame: Arc::new(Mutex::new(MeterFrame::silent(0, 4))),
             stop: Arc::new(AtomicBool::new(false)),
-            child: None,
-            thread: None,
+            children: Vec::new(),
+            threads: Vec::new(),
         }
     }
 
     pub fn with_target(target: impl Into<String>) -> Self {
         Self {
-            target: Some(target.into()),
-            channels: 2,
-            frame: Arc::new(Mutex::new(MeterFrame::silent(0, 2))),
+            input_target: Some(target.into()),
+            output_target: detect_evo_output_node(),
+            frame: Arc::new(Mutex::new(MeterFrame::silent(0, 4))),
             stop: Arc::new(AtomicBool::new(false)),
-            child: None,
-            thread: None,
+            children: Vec::new(),
+            threads: Vec::new(),
         }
     }
 }
@@ -185,89 +297,63 @@ impl Default for PcmMeterSource {
 }
 
 impl MeterSource for PcmMeterSource {
-    fn start(&mut self, profile: &DeviceProfile) -> Result<(), MeterError> {
-        if self.thread.is_some() {
+    fn start(&mut self, _profile: &DeviceProfile) -> Result<(), MeterError> {
+        if !self.threads.is_empty() {
             return Ok(());
         }
 
-        self.channels = profile.inputs;
-        *self.frame.lock().unwrap() = MeterFrame::silent(0, self.channels);
-
-        let mut child = spawn_capture_child(self.target.as_deref(), self.channels)?;
-        let mut stdout = match child.stdout.take() {
-            Some(out) => out,
-            None => {
-                let _ = child.kill();
-                return Err(MeterError::Backend("stdout no accesible".into()));
-            }
-        };
-
+        *self.frame.lock().unwrap() = MeterFrame::silent(0, 4);
         self.stop.store(false, Ordering::Relaxed);
-        let stop = Arc::clone(&self.stop);
-        let shared_frame = Arc::clone(&self.frame);
-        let channels = self.channels;
 
-        let thread = std::thread::Builder::new()
-            .name("evo-pcm-meter".to_string())
-            .spawn(move || {
-                let bytes_per_frame = (channels as usize) * 2;
-                // Ventana de cómputo de 10 ms (480 muestras a 48 kHz)
-                let chunk_frames = 480;
-                let chunk_bytes = chunk_frames * bytes_per_frame;
-                let mut buf = vec![0u8; chunk_bytes];
-                let mut current_peaks_db = vec![-128.0f32; channels as usize];
-                let mut seq: u16 = 0;
+        let shared_state = Arc::new(Mutex::new(([-128.0f32; 4], 0u16)));
+        let mut started_any = false;
 
-                while !stop.load(Ordering::Relaxed) {
-                    if stdout.read_exact(&mut buf).is_err() {
-                        break;
-                    }
+        // 1. Stream de entradas (Mic 1 & Mic 2 -> canales 0 y 1)
+        if let Ok(mut child) = spawn_capture_child(self.input_target.as_deref(), 2) {
+            if let Some(stdout) = child.stdout.take() {
+                let thread = spawn_meter_stream_reader(
+                    stdout,
+                    Arc::clone(&self.stop),
+                    Arc::clone(&shared_state),
+                    Arc::clone(&self.frame),
+                    0,
+                    2,
+                    "evo-in-meter".to_string(),
+                );
+                self.children.push(child);
+                self.threads.push(thread);
+                started_any = true;
+            } else {
+                let _ = child.kill();
+            }
+        }
 
-                    // Encontrar el valor pico absoluto en este bloque de 10 ms
-                    let mut chunk_max = vec![0i16; channels as usize];
-                    for frame_slice in buf.chunks_exact(bytes_per_frame) {
-                        for (ch, sample_bytes) in frame_slice.chunks_exact(2).enumerate() {
-                            if ch < channels as usize {
-                                let val = i16::from_le_bytes([sample_bytes[0], sample_bytes[1]]);
-                                let abs_val = if val == i16::MIN { i16::MAX } else { val.abs() };
-                                if abs_val > chunk_max[ch] {
-                                    chunk_max[ch] = abs_val;
-                                }
-                            }
-                        }
-                    }
+        // 2. Stream de salidas (Playback Music L & R -> canales 2 y 3)
+        if let Ok(mut child) = spawn_capture_child(self.output_target.as_deref(), 2) {
+            if let Some(stdout) = child.stdout.take() {
+                let thread = spawn_meter_stream_reader(
+                    stdout,
+                    Arc::clone(&self.stop),
+                    Arc::clone(&shared_state),
+                    Arc::clone(&self.frame),
+                    2,
+                    2,
+                    "evo-out-meter".to_string(),
+                );
+                self.children.push(child);
+                self.threads.push(thread);
+                started_any = true;
+            } else {
+                let _ = child.kill();
+            }
+        }
 
-                    // Conversión a dBFS y balística (ataque inmediato, caída exponencial de ~1.5 dB por 10 ms)
-                    let decay_step = 1.5;
-                    for ch in 0..(channels as usize) {
-                        let max_val = chunk_max[ch];
-                        let db = if max_val <= 10 {
-                            -128.0
-                        } else {
-                            20.0 * ((max_val as f32) / 32767.0).log10()
-                        };
+        if !started_any {
+            return Err(MeterError::Backend(
+                "No se pudo iniciar ningún flujo de captura de audio".into(),
+            ));
+        }
 
-                        if db > current_peaks_db[ch] {
-                            current_peaks_db[ch] = db;
-                        } else {
-                            current_peaks_db[ch] =
-                                (current_peaks_db[ch] - decay_step).max(db).max(-128.0);
-                        }
-                    }
-
-                    seq = seq.wrapping_add(1);
-                    let new_frame = MeterFrame::from_db_fs(seq, &current_peaks_db);
-                    if let Ok(mut lock) = shared_frame.lock() {
-                        *lock = new_frame;
-                    }
-                }
-
-                tracing::debug!("Hilo de medición evo-pcm-meter finalizado");
-            })
-            .map_err(|e| MeterError::Backend(e.to_string()))?;
-
-        self.child = Some(child);
-        self.thread = Some(thread);
         Ok(())
     }
 
@@ -277,11 +363,11 @@ impl MeterSource for PcmMeterSource {
 
     fn stop(&mut self) -> Result<(), MeterError> {
         self.stop.store(true, Ordering::Relaxed);
-        if let Some(mut child) = self.child.take() {
+        for mut child in self.children.drain(..) {
             let _ = child.kill();
             let _ = child.wait();
         }
-        if let Some(thread) = self.thread.take() {
+        for thread in self.threads.drain(..) {
             let _ = thread.join();
         }
         Ok(())
@@ -358,8 +444,10 @@ mod tests {
     fn test_pcm_meter_source_initial_silence() {
         let source = PcmMeterSource::new();
         let frame = source.latest();
-        assert_eq!(frame.channels(), 2);
+        assert_eq!(frame.channels(), 4);
         assert_eq!(frame.peak_raw(0), Some(i8::MIN));
         assert_eq!(frame.peak_raw(1), Some(i8::MIN));
+        assert_eq!(frame.peak_raw(2), Some(i8::MIN));
+        assert_eq!(frame.peak_raw(3), Some(i8::MIN));
     }
 }

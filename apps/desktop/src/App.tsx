@@ -164,7 +164,15 @@ export function App() {
               activeMode={activeMode}
               channels={channels}
               monitorMix={monitorMix}
-              meterDb={activeMode === "ch0" ? meters[0] : activeMode === "ch1" ? meters[1] : undefined}
+              meterDb={
+                activeMode === "ch0"
+                  ? meters[0]
+                  : activeMode === "ch1"
+                  ? meters[1]
+                  : activeMode === "out"
+                  ? Math.max(meters[2] ?? -128, meters[3] ?? -128)
+                  : undefined
+              }
               onGainChange={handleGainChange}
               onMonitorMixChange={handleMonitorMixChange}
               showToast={showToast}
@@ -185,6 +193,7 @@ export function App() {
             <CenterCluster
               activeMode={activeMode}
               channels={channels}
+              outputMeterDb={Math.max(meters[2] ?? -128, meters[3] ?? -128)}
               onSelectMode={setActiveMode}
               onToggleMasterMute={handleToggleMasterMute}
             />

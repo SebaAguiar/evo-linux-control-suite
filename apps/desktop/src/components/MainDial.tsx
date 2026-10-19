@@ -119,7 +119,7 @@ export const MainDial: React.FC<MainDialProps> = ({
   // Cómputo de vúmetro en dBFS (-60 a 0 dBFS)
   const meterVal = meterDb ?? -128;
   const isMeterActive =
-    (activeMode === "ch0" || activeMode === "ch1") &&
+    (activeMode === "ch0" || activeMode === "ch1" || activeMode === "out") &&
     !currentInfo.isMuted &&
     !userAdjusting &&
     !isDragging &&

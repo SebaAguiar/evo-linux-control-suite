@@ -4,6 +4,7 @@ import type { ActiveMode, ChannelState } from "../types";
 interface CenterClusterProps {
   activeMode: ActiveMode;
   channels: ChannelState[];
+  outputMeterDb?: number;
   onSelectMode: (mode: ActiveMode) => void;
   onToggleMasterMute: () => void;
 }
@@ -11,11 +12,16 @@ interface CenterClusterProps {
 export const CenterCluster: React.FC<CenterClusterProps> = ({
   activeMode,
   channels,
+  outputMeterDb,
   onSelectMode,
   onToggleMasterMute,
 }) => {
   const allMuted = channels.length > 0 && channels.every((c) => !!c.muted);
   const anyMuted = channels.some((c) => !!c.muted);
+
+  const meterVal = outputMeterDb ?? -128;
+  const meterRatio = Math.max(0, Math.min(1, (meterVal + 60) / 60));
+  const meterColor = meterVal > -3 ? "#ff3b30" : meterVal > -18 ? "#ffcc00" : "var(--color-accent)";
 
   return (
     <div className="center-cluster">
@@ -48,6 +54,15 @@ export const CenterCluster: React.FC<CenterClusterProps> = ({
         className={`center-btn ${activeMode === "out" ? "active" : ""}`}
         id="btn-mode-out"
         title="Volumen General de Salida"
+        style={
+          meterRatio > 0.04
+            ? {
+                boxShadow: `0 0 ${Math.round(meterRatio * 12) + 2}px ${meterColor}`,
+                borderColor: meterColor,
+                transition: "box-shadow 0.05s ease-out, border-color 0.05s ease-out",
+              }
+            : undefined
+        }
         onClick={() => onSelectMode("out")}
       >
         <svg viewBox="0 0 24 24">

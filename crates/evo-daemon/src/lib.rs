@@ -477,7 +477,7 @@ mod tests {
                 .expect("error en ws");
             if let tokio_tungstenite::tungstenite::Message::Binary(bytes) = msg {
                 let frame = evo_domain::MeterFrame::decode(&bytes).expect("frame decodifica");
-                assert_eq!(frame.channels(), 2);
+                assert!(frame.channels() >= 2);
                 received_binary_meter = true;
                 break;
             }
