@@ -346,53 +346,63 @@ export const MainDial: React.FC<MainDialProps> = ({
         {haloDots.map((dot, idx) => {
           let dotColor = "var(--led-inactive)";
           let dotGlow = "none";
+          let dotOpacity = 0.25;
 
           if (isMeterActive && meterVal > -55) {
-            // Vúmetro orgánico Audient EVO 4 (19 LEDs blancos con intensidad y fade suave)
-            const dist = idx - peakPos;
+            // Vúmetro fiel al hardware Audient EVO 4 (19 LEDs blancos físicos):
+            // - Los primeros ~5 LEDs (energía base) se encienden con intensidad fuerte y nítida.
+            // - Desde el 5to hacia el pico se encienden de forma más gradual/suave.
+            // - Al bajar el volumen, cada LED se va apagando sutilmente de a poco.
             let intensity = 0;
 
-            if (dist <= 0) {
-              const distBelow = -dist;
-              if (distBelow < 1.0) {
-                // Cabeza de pico actual: máxima intensidad brillante
+            if (idx <= peakPos) {
+              const strongBand = Math.min(4, Math.floor(peakPos * 0.45)); // Hasta los primeros 5 LEDs (0..4)
+              if (idx <= strongBand) {
+                // Primeros LEDs: brillo pleno e intensidad fuerte
                 intensity = 1.0;
-              } else if (distBelow <= 6.0) {
-                // Cola de desvanecimiento suave (fade out sutil)
-                intensity = Math.max(0, 1.0 - distBelow * 0.16);
               } else {
-                // Hacia abajo se apaga (no prende todos los LEDs)
-                intensity = 0;
+                // Rango gradual desde strongBand hasta peakPos
+                const span = peakPos - strongBand;
+                const ratio = span > 0 ? (idx - strongBand) / span : 0;
+                // De 0.95 (cerca de la base) a 0.28 (en el límite superior del pico)
+                intensity = Math.max(0.25, 0.95 - ratio * 0.68);
               }
-            } else if (dist < 1.0) {
-              // Entrada suave al siguiente LED
-              intensity = (1.0 - dist) * 0.7;
+            } else if (idx - peakPos < 1.0) {
+              // Suavizado fraccional para el LED inmediatamente siguiente al pico
+              const frac = idx - peakPos;
+              intensity = (1.0 - frac) * 0.22;
             }
 
             if (intensity > 0) {
               if (idx === TOTAL_LEDS - 1 && meterVal >= -0.5) {
                 // Clip / saturación en 0 dBFS (último LED en rojo de advertencia)
                 dotColor = "#ff3b30";
+                dotOpacity = 1.0;
                 dotGlow = "drop-shadow(0 0 8px #ff3b30)";
               } else {
-                // LED blanco puro con brillo e intensidad dinámica
-                dotColor = `rgba(255, 255, 255, ${Math.max(0.12, intensity)})`;
+                // Blanco puro con opacidad e intensidad gradual
+                dotColor = "#ffffff";
+                dotOpacity = Math.max(0.20, Math.min(1.0, intensity));
                 dotGlow =
-                  intensity > 0.5
-                    ? `drop-shadow(0 0 ${Math.round(7 * intensity)}px rgba(255, 255, 255, ${0.95 * intensity}))`
-                    : intensity > 0.2
-                    ? `drop-shadow(0 0 3px rgba(255, 255, 255, 0.6))`
+                  intensity >= 0.85
+                    ? "drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))"
+                    : intensity >= 0.55
+                    ? "drop-shadow(0 0 4px rgba(255, 255, 255, 0.75))"
+                    : intensity >= 0.25
+                    ? "drop-shadow(0 0 2px rgba(255, 255, 255, 0.45))"
                     : "none";
               }
             } else if (idx === activeLedCount - 1) {
-              // Marcador discreto del punto de ganancia/volumen ajustado
-              dotColor = "rgba(255, 255, 255, 0.35)";
+              // Marcador discreto del punto de ajuste fijado en el knob
+              dotColor = "#ffffff";
+              dotOpacity = 0.35;
               dotGlow = "none";
             }
           } else {
             // Modo Ajuste / Estático: arco de ganancia, volumen o balance
             const isActive = idx < activeLedCount;
             dotColor = isActive ? haloColor : "var(--led-inactive)";
+            dotOpacity = isActive ? 1.0 : 0.25;
             dotGlow = isActive ? `drop-shadow(0 0 5px ${haloGlow})` : "none";
           }
 
@@ -404,9 +414,12 @@ export const MainDial: React.FC<MainDialProps> = ({
               r={4.8}
               className="halo-dot"
               fill={dotColor}
+              opacity={dotOpacity}
               style={{
                 filter: dotGlow,
-                transition: isMeterActive ? "fill 0.07s ease-out, filter 0.07s ease-out" : "none",
+                transition: isMeterActive
+                  ? "opacity 0.12s cubic-bezier(0, 0, 0.2, 1), filter 0.12s ease-out, fill 0.12s ease"
+                  : "fill 0.2s ease, opacity 0.2s ease, filter 0.2s ease",
               }}
             />
           );
