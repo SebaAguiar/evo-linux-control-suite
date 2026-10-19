@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 
-export type Theme = "evo" | "brand";
+export type Theme = "brand" | "evo";
 
-const THEME_STORAGE_KEY = "evo_ui_theme";
+const THEME_STORAGE_KEY = "evo_ui_theme_v2";
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-        if (saved === "evo" || saved === "brand") return saved;
+        if (saved === "brand" || saved === "evo") return saved;
       } catch {
         // Fallback
       }
     }
-    return "evo"; // Oficial por defecto
+    return "brand"; // Arsian por defecto
   });
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function useTheme() {
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === "evo" ? "brand" : "evo"));
+    setTheme((prev) => (prev === "brand" ? "evo" : "brand"));
   }, []);
 
   return { theme, setTheme, toggleTheme };

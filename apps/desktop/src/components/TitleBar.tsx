@@ -21,7 +21,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   downloading = false,
   progress = 0,
   onDownloadUpdate,
-  theme = "evo",
+  theme = "brand",
   onToggleTheme,
 }) => {
   const connClass =
@@ -78,13 +78,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
             className={`theme-toggle-btn ${theme === "brand" ? "theme-brand" : "theme-evo"}`}
             onClick={onToggleTheme}
             title={
-              theme === "evo"
-                ? "Paleta actual: Oficial EVO (Haz clic para cambiar a Marca Arsian)"
-                : "Paleta actual: Marca Arsian (Haz clic para cambiar a Oficial EVO)"
+              theme === "brand"
+                ? "Paleta actual: Marca Arsian (Haz clic para cambiar a Oficial EVO)"
+                : "Paleta actual: Oficial EVO (Haz clic para cambiar a Marca Arsian)"
             }
           >
             <span className="theme-toggle-dot" />
-            <span className="theme-toggle-label">{theme === "evo" ? "EVO" : "Arsian"}</span>
+            <span className="theme-toggle-label">{theme === "brand" ? "Arsian" : "EVO"}</span>
           </button>
         )}
 

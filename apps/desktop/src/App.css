@@ -1,61 +1,8 @@
-:root, [data-theme="evo"] {
+:root, [data-theme="brand"], [data-theme="dark"] {
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  /* Official EVO Hardware Palette */
-  --color-primary: #f2f2f7;
-  --color-secondary: #a1a1aa;
-  --color-muted: #71717a;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.22);
-  --color-surface: #202124;
-  --color-surface-subtle: #1c1d20;
-  --color-background: #191a1d;
-  --color-titlebar: #141517;
-  --color-accent: #00ea76;        /* EVO signature green */
-  --color-accent-light: #34d399;  /* EVO light green */
-  --color-accent-rgb: 0, 234, 118;
-  --color-accent-glow: rgba(0, 234, 118, 0.4);
-
-  /* Audio functional indicators */
-  --led-active: #ffffff;
-  --led-inactive: #313338;
-  --led-glow: rgba(255, 255, 255, 0.7);
-  --green-evo: #00ea76;
-  --green-smartgain: #35c759;
-  --red-mute: #ff3b30;
-  --amber-48v: #ff453a;
-  --text-main: #f2f2f7;
-  --text-muted: #8e8e93;
-
-  /* Knob & Controls styling */
-  --bg-knob-outer: radial-gradient(circle at 50% 50%, #24262b 0%, #18191c 70%, #101113 100%);
-  --bg-knob-indent: radial-gradient(circle at 50% 50%, #121316 0%, #17181c 65%, #202227 100%);
-  --border-knob: #2b2e35;
-  --border-knob-indent: rgba(255, 255, 255, 0.05);
-  --text-knob-num: #ffffff;
-  --btn-round-bg: #1a1b1e;
-  --btn-round-border: #2f3136;
-  --btn-round-color: #888888;
-  --btn-round-hover-bg: #24262b;
-  --btn-round-hover-color: #ffffff;
-  --step-btn-bg: #1a1b1e;
-  --step-btn-border: #2d3036;
-  --step-btn-color: #999999;
-  --step-btn-hover-bg: #25272c;
-  --step-btn-hover-color: #ffffff;
-  --steppers-bar-bg: rgba(0, 0, 0, 0.3);
-  --steppers-bar-border: rgba(255, 255, 255, 0.05);
-  --mini-knob-bg: radial-gradient(circle at 40% 40%, #2f3136 0%, #18191c 100%);
-  --mini-knob-border: #3c3e44;
-  --mini-dial-track: #2c2e33;
-}
-
-:root[data-theme="brand"], :root[data-theme="dark"], [data-theme="brand"], [data-theme="dark"] {
-  color-scheme: dark;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-
-  /* Official Arsian Brand Dark Palette */
+  /* Official Arsian Brand Dark Palette (Default) */
   --background: #111827;
   --surface: #1F2937;
   --surface-elevated: #374151;
@@ -116,6 +63,73 @@
   --mini-knob-bg: radial-gradient(circle at 40% 40%, #2d3748 0%, #1a202c 100%);
   --mini-knob-border: #374151;
   --mini-dial-track: #283244;
+}
+
+:root[data-theme="evo"], [data-theme="evo"] {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Official EVO Hardware Palette (Optional) */
+  --background: #191a1d;
+  --surface: #202124;
+  --surface-elevated: #28292d;
+  --border: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #f2f2f7;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  --accent: #00ea76;        /* EVO signature green */
+  --accent-hover: #34d399;  /* EVO light green */
+  --accent-foreground: #191a1d;
+
+  /* Mapped design tokens */
+  --color-primary: #f2f2f7;
+  --color-secondary: #a1a1aa;
+  --color-muted: #71717a;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.22);
+  --color-surface: #202124;
+  --color-surface-subtle: #1c1d20;
+  --color-background: #191a1d;
+  --color-titlebar: #141517;
+  --color-accent: #00ea76;
+  --color-accent-light: #34d399;
+  --color-accent-rgb: 0, 234, 118;
+  --color-accent-glow: rgba(0, 234, 118, 0.4);
+
+  /* Audio functional indicators */
+  --led-active: #ffffff;
+  --led-inactive: #313338;
+  --led-glow: rgba(255, 255, 255, 0.7);
+  --green-evo: #00ea76;
+  --green-smartgain: #35c759;
+  --red-mute: #ff3b30;
+  --amber-48v: #ff453a;
+  --text-main: #f2f2f7;
+  --text-muted: #8e8e93;
+
+  /* Knob & Controls styling */
+  --bg-knob-outer: radial-gradient(circle at 50% 50%, #24262b 0%, #18191c 70%, #101113 100%);
+  --bg-knob-indent: radial-gradient(circle at 50% 50%, #121316 0%, #17181c 65%, #202227 100%);
+  --border-knob: #2b2e35;
+  --border-knob-indent: rgba(255, 255, 255, 0.05);
+  --text-knob-num: #ffffff;
+  --btn-round-bg: #1a1b1e;
+  --btn-round-border: #2f3136;
+  --btn-round-color: #888888;
+  --btn-round-hover-bg: #24262b;
+  --btn-round-hover-color: #ffffff;
+  --step-btn-bg: #1a1b1e;
+  --step-btn-border: #2d3036;
+  --step-btn-color: #999999;
+  --step-btn-hover-bg: #25272c;
+  --step-btn-hover-color: #ffffff;
+  --steppers-bar-bg: rgba(0, 0, 0, 0.3);
+  --steppers-bar-border: rgba(255, 255, 255, 0.05);
+  --mini-knob-bg: radial-gradient(circle at 40% 40%, #2f3136 0%, #18191c 100%);
+  --mini-knob-border: #3c3e44;
+  --mini-dial-track: #2c2e33;
 }
 
 * {
