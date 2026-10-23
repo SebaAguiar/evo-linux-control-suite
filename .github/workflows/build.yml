@@ -231,19 +231,19 @@ jobs:
         run: mkdir -p release-assets
 
       - name: Descargar artefactos del Daemon
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: evo-daemon-linux-x86_64
           path: release-assets/tmp-daemon/
 
       - name: Descargar artefactos de Desktop (binario)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: evo-desktop-linux-x86_64
           path: release-assets/tmp-desktop/
 
       - name: Descargar artefactos de Desktop (.deb)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: evo-desktop-deb
           path: release-assets/
