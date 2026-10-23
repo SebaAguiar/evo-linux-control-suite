@@ -269,7 +269,7 @@ jobs:
           node .github/scripts/generate-latest-json.mjs || echo "Aviso: latest.json no generado si no se encontraron firmas"
 
       - name: Crear Release en GitHub
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-assets/*
           generate_release_notes: true
