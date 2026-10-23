@@ -43,8 +43,9 @@ mkdir -p "${SUITE_DIR}/packaging" "${OUT_DIR}"
 install -m 755 "${DAEMON_BIN}" "${SUITE_DIR}/evo-daemon"
 install -m 755 "${ROOT_DIR}/scripts/evo" "${SUITE_DIR}/evo"
 install -m 755 "${ROOT_DIR}/scripts/install.sh" "${SUITE_DIR}/install.sh"
-cp -f "${PACKAGING_SRC}"/* "${SUITE_DIR}/packaging/"
-chmod 644 "${SUITE_DIR}/packaging/"*
+cp -a "${PACKAGING_SRC}/." "${SUITE_DIR}/packaging/"
+find "${SUITE_DIR}/packaging" -type d -exec chmod 755 {} +
+find "${SUITE_DIR}/packaging" -type f -exec chmod 644 {} +
 printf '%s\n' "${VERSION}" >"${SUITE_DIR}/VERSION"
 
 if [[ -x "${DESKTOP_BIN}" ]]; then

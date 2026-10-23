@@ -313,7 +313,7 @@ fi
 # ---------------------------------------------------------------------------
 mkdir -p "${DATA_DIR}"
 if [[ -n "${PACKAGING_DIR}" && -d "${PACKAGING_DIR}" ]]; then
-  cp -f "${PACKAGING_DIR}"/* "${DATA_DIR}/" 2>/dev/null || true
+  cp -a "${PACKAGING_DIR}/." "${DATA_DIR}/" 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
@@ -404,7 +404,87 @@ if [[ -n "${PACKAGING_DIR}" && -d "${PACKAGING_DIR}" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 7. Dependencias de runtime y PATH
+# 7. Reglas de ventana flotante para Tiling Window Managers / Compositors
+# ---------------------------------------------------------------------------
+configure_tiling_wm_rules() {
+  # Hyprland
+  local hypr_dir="${HOME}/.config/hypr"
+  if [[ -d "${hypr_dir}" ]]; then
+    local hypr_conf="${hypr_dir}/hyprland.conf"
+    if [[ -f "${hypr_conf}" ]] && ! grep -q "evo-desktop" "${hypr_conf}" 2>/dev/null; then
+      cat <<'EOF' >> "${hypr_conf}"
+
+# EVO Control — Ventana flotante y compacta
+windowrulev2 = float, class:^(evo-desktop)$
+windowrulev2 = size 620 360, class:^(evo-desktop)$
+windowrulev2 = center, class:^(evo-desktop)$
+EOF
+      ok "Regla añadida a ${hypr_conf} (Hyprland)"
+    fi
+  fi
+
+  # Sway
+  local sway_dir="${HOME}/.config/sway"
+  if [[ -d "${sway_dir}" ]]; then
+    local sway_conf="${sway_dir}/config"
+    if [[ -f "${sway_conf}" ]] && ! grep -q "evo-desktop" "${sway_conf}" 2>/dev/null; then
+      cat <<'EOF' >> "${sway_conf}"
+
+# EVO Control — Ventana flotante y compacta
+for_window [app_id="evo-desktop"] floating enable, resize set 620 360, move position center
+EOF
+      ok "Regla añadida a ${sway_conf} (Sway)"
+    fi
+  fi
+
+  # i3
+  local i3_dir="${HOME}/.config/i3"
+  if [[ -d "${i3_dir}" ]]; then
+    local i3_conf="${i3_dir}/config"
+    if [[ -f "${i3_conf}" ]] && ! grep -q "evo-desktop" "${i3_conf}" 2>/dev/null; then
+      cat <<'EOF' >> "${i3_conf}"
+
+# EVO Control — Ventana flotante y compacta
+for_window [class="(?i)evo-desktop"] floating enable, resize set 620 360, move position center
+EOF
+      ok "Regla añadida a ${i3_conf} (i3)"
+    fi
+  fi
+
+  # Niri
+  local niri_dir="${HOME}/.config/niri"
+  if [[ -d "${niri_dir}" ]]; then
+    local niri_target=""
+    if [[ -f "${niri_dir}/cfg/rules.kdl" ]]; then
+      niri_target="${niri_dir}/cfg/rules.kdl"
+    elif [[ -f "${niri_dir}/config.kdl" ]]; then
+      niri_target="${niri_dir}/config.kdl"
+    fi
+
+    if [[ -n "${niri_target}" ]] && ! grep -q 'app-id="evo-desktop"' "${niri_target}" 2>/dev/null; then
+      cat <<'EOF' >> "${niri_target}"
+
+// EVO Control — Ventana flotante y compacta
+window-rule {
+    match app-id="evo-desktop"
+    open-floating true
+    default-column-width { fixed 620; }
+    default-window-height { fixed 360; }
+}
+EOF
+      ok "Regla añadida a ${niri_target} (Niri)"
+    fi
+  fi
+
+  if [[ -d "${DATA_DIR}/window-rules" ]]; then
+    ok "Plantillas de reglas disponibles en ${DATA_DIR}/window-rules/"
+  fi
+}
+
+configure_tiling_wm_rules
+
+# ---------------------------------------------------------------------------
+# 8. Dependencias de runtime y PATH
 # ---------------------------------------------------------------------------
 missing_libs() {
   local bin="$1"

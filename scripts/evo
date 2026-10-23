@@ -164,6 +164,7 @@ missing_libs() {
 }
 
 focus_desktop_window() {
+  # 1. Niri (Wayland scrollable tiling)
   if command -v niri >/dev/null 2>&1; then
     local win_id
     win_id="$(niri msg windows 2>/dev/null | awk '/Window ID/ {id=$3} /App ID: "evo-desktop"/ {print id}' | tr -d ':' | head -n1)"
@@ -172,6 +173,42 @@ focus_desktop_window() {
       return 0
     fi
   fi
+
+  # 2. Hyprland (Wayland dynamic tiling)
+  if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl >/dev/null 2>&1; then
+    if hyprctl dispatch focuswindow "class:evo-desktop" >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+
+  # 3. Sway (Wayland i3-compatible)
+  if [[ -n "${SWAYSOCK:-}" ]] && command -v swaymsg >/dev/null 2>&1; then
+    if swaymsg '[app_id="evo-desktop"] focus' >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+
+  # 4. i3 (X11 tiling)
+  if { [[ -n "${I3SOCK:-}" ]] || command -v i3-msg >/dev/null 2>&1; } && i3-msg -q '[class="(?i)evo-desktop"] focus' >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # 5. X11 via wmctrl o xdotool
+  if [[ -n "${DISPLAY:-}" ]]; then
+    if command -v wmctrl >/dev/null 2>&1 && wmctrl -x -a evo-desktop >/dev/null 2>&1; then
+      return 0
+    elif command -v xdotool >/dev/null 2>&1 && xdotool search --class evo-desktop windowactivate >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+
+  # 6. Fallback universal: invocar evo-desktop para que tauri-plugin-single-instance traiga la ventana al frente
+  local desktop_bin
+  if desktop_bin="$(find_desktop_bin 2>/dev/null)"; then
+    "${desktop_bin}" >/dev/null 2>&1 &
+    return 0
+  fi
+
   return 1
 }
 
