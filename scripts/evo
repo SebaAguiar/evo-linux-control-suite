@@ -157,11 +157,45 @@ open_browser() {
   fi
 }
 
+missing_libs() {
+  local bin="$1"
+  command -v ldd >/dev/null 2>&1 || return 0
+  ldd "${bin}" 2>/dev/null | awk '/not found/ {print $1}' | sort -u | tr '\n' ' '
+}
+
+focus_desktop_window() {
+  if command -v niri >/dev/null 2>&1; then
+    local win_id
+    win_id="$(niri msg windows 2>/dev/null | awk '/Window ID/ {id=$3} /App ID: "evo-desktop"/ {print id}' | tr -d ':' | head -n1)"
+    if [[ -n "${win_id}" ]]; then
+      niri msg action focus-window --id "${win_id}" >/dev/null 2>&1 || true
+      return 0
+    fi
+  fi
+  return 1
+}
+
 open_desktop_or_browser() {
+  if pgrep -x evo-desktop >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${RESET} EVO Control ya está abierto."
+    focus_desktop_window || true
+    return 0
+  fi
+
   local desktop_bin
   if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]] && desktop_bin="$(find_desktop_bin 2>/dev/null)"; then
+    local missing
+    missing="$(missing_libs "${desktop_bin}" 2>/dev/null || true)"
+    if [[ -n "${missing}" ]]; then
+      echo -e "${YELLOW}Aviso:${RESET} La app de escritorio no puede iniciar porque faltan librerías:"
+      echo -e "       ${RED}${missing}${RESET}"
+      echo -e "       Instalalas con: ${CYAN}sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0${RESET} (o equivalente)"
+      echo -e "  Abriendo en tu navegador..."
+      open_browser "${WEB_URL}"
+      return 0
+    fi
     echo -e "  Abriendo aplicación de escritorio EVO Control..."
-    "${desktop_bin}" >/dev/null 2>&1 &
+    nohup "${desktop_bin}" >/tmp/evo-desktop.log 2>&1 &
   else
     echo -e "  Abriendo en tu navegador..."
     open_browser "${WEB_URL}"
@@ -404,10 +438,30 @@ cmd_app() {
   if ! is_daemon_running; then
     cmd_start "false"
   fi
+  if pgrep -x evo-desktop >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${RESET} EVO Control ya está abierto."
+    focus_desktop_window || true
+    return 0
+  fi
   local desktop_bin
   if desktop_bin="$(find_desktop_bin 2>/dev/null)"; then
+    local missing
+    missing="$(missing_libs "${desktop_bin}" 2>/dev/null || true)"
+    if [[ -n "${missing}" ]]; then
+      echo -e "${RED}Error:${RESET} No se puede iniciar la app de escritorio porque faltan librerías:"
+      echo -e "       ${RED}${missing}${RESET}"
+      echo
+      echo -e "Instalalas con:"
+      echo -e "  Ubuntu/Debian: ${CYAN}sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0${RESET}"
+      echo -e "  Arch Linux:    ${CYAN}sudo pacman -S webkit2gtk-4.1 gtk3${RESET}"
+      echo -e "  Fedora:        ${CYAN}sudo dnf install webkit2gtk4.1 gtk3${RESET}"
+      echo
+      echo -e "Abriendo interfaz en el navegador..."
+      open_browser "${WEB_URL}"
+      return 1
+    fi
     echo "Abriendo aplicación de escritorio EVO Control..."
-    "${desktop_bin}" "$@" >/dev/null 2>&1 &
+    nohup "${desktop_bin}" "$@" >/tmp/evo-desktop.log 2>&1 &
   else
     echo -e "${YELLOW}Aviso:${RESET} Binario de escritorio no encontrado. Abriendo interfaz web..."
     open_browser "${WEB_URL}"
