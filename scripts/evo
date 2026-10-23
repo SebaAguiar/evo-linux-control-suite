@@ -58,12 +58,6 @@ find_repo_dir() {
     fi
   fi
 
-  # 4. Fallback al path conocido
-  if [[ -d "/home/seba/Documentos/trabajo/arsian/evo-linux-control-suite" ]]; then
-    echo "/home/seba/Documentos/trabajo/arsian/evo-linux-control-suite"
-    return 0
-  fi
-
   return 1
 }
 
