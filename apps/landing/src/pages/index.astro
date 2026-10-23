@@ -993,22 +993,22 @@ const year = new Date().getFullYear();
                       </button>
                     </div>
                     <div class="terminal-command">
-                      <span>$</span><code>git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; ./scripts/install.sh</code>
+                      <span>$</span><code>curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest/download/install.sh | bash</code>
                     </div>
                     <div class="terminal-output">
-                      <span>✓</span> EVO Linux Control Suite listo para instalar
+                      <span>✓</span> EVO Linux Control Suite listo para instalar (sin dependencias previas)
                     </div>
                   </div>
                   <div class="install-tabs reveal" role="tablist" aria-label="Formatos de instalación">
                     <button class="active" role="tab" aria-selected="true"
-                      data-command="git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; ./scripts/install.sh"
-                      data-output="Clona, compila e instala daemon, servicio y app de escritorio">Instalador universal</button>
+                      data-command="curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest/download/install.sh | bash"
+                      data-output="Descarga el paquete precompilado y configura daemon, app de escritorio y servicio (sin git ni Rust)">Instalador universal</button>
                     <button role="tab" aria-selected="false"
                       data-command="wget https://github.com/SebaAguiar/evo-linux-control-suite/releases/download/v1.0.0/EVO.Linux.Control.Suite_1.0.0_amd64.deb &amp;&amp; sudo apt install ./EVO.Linux.Control.Suite_1.0.0_amd64.deb"
-                      data-output="Paquete de escritorio instalado (el daemon va con el instalador universal)">Debian / Ubuntu (.deb)</button>
+                      data-output="Paquete .deb de la app de escritorio (el daemon se incluye con el instalador)">Debian / Ubuntu (.deb)</button>
                     <button role="tab" aria-selected="false"
-                      data-command="git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; cargo build --release -p evo-daemon"
-                      data-output="Requiere Rust y las dependencias del README; el binario queda en target/release/evo-daemon">Desde el código (Rust)</button>
+                      data-command="git clone https://github.com/SebaAguiar/evo-linux-control-suite.git &amp;&amp; cd evo-linux-control-suite &amp;&amp; ./scripts/install.sh"
+                      data-output="Clona el repositorio y compila con Cargo y Bun localmente">Desde el código (Git + Rust)</button>
                   </div>
                   <p class="install-note reveal">
                     <svg

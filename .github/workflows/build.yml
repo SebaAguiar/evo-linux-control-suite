@@ -185,7 +185,6 @@ jobs:
         run: bun run tauri build --bundles deb --ignore-version-mismatches
 
       - name: Preparar artefacto binario
-        if: ${{ !inputs.create_deb && !startsWith(github.ref, 'refs/tags/v') }}
         run: |
           mkdir -p dist/desktop
           cp target/release/evo-desktop dist/desktop/
@@ -193,7 +192,6 @@ jobs:
           tar -czvf evo-desktop-linux-x86_64.tar.gz -C dist/desktop .
 
       - name: Subir artefacto binario standalone
-        if: ${{ !inputs.create_deb && !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: evo-desktop-linux-x86_64
@@ -236,13 +234,30 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: evo-daemon-linux-x86_64
-          path: release-assets/
+          path: release-assets/tmp-daemon/
+
+      - name: Descargar artefactos de Desktop (binario)
+        uses: actions/download-artifact@v4
+        with:
+          name: evo-desktop-linux-x86_64
+          path: release-assets/tmp-desktop/
 
       - name: Descargar artefactos de Desktop (.deb)
         uses: actions/download-artifact@v4
         with:
           name: evo-desktop-deb
           path: release-assets/
+
+      - name: Empaquetar EVO Suite autónomo y bootstrap
+        run: |
+          tar -xzf release-assets/tmp-daemon/evo-daemon-linux-x86_64.tar.gz -C release-assets/tmp-daemon/
+          tar -xzf release-assets/tmp-desktop/evo-desktop-linux-x86_64.tar.gz -C release-assets/tmp-desktop/
+          chmod +x scripts/package-suite.sh scripts/install-bootstrap.sh scripts/install.sh scripts/evo
+          EVO_DAEMON_BIN="release-assets/tmp-daemon/evo-daemon" \
+          EVO_DESKTOP_BIN="release-assets/tmp-desktop/evo-desktop" \
+          ./scripts/package-suite.sh release-assets
+          cp release-assets/tmp-daemon/evo-daemon-linux-x86_64.tar.gz release-assets/
+          rm -rf release-assets/tmp-daemon release-assets/tmp-desktop
 
       - name: Generar latest.json para el auto-updater
         env:

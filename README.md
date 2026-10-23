@@ -101,9 +101,17 @@ sudo dnf install -y pkg-config alsa-lib-devel systemd-devel openssl-devel \
   gtk3-devel webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel
 ```
 
-### Automated Quick Install
+### Quick Install (No Git or Rust Required)
 
-Clone the repository and run the automated installer:
+You can install the complete precompiled suite (`evo-daemon`, `evo-desktop`, `evo` CLI, udev rules, and systemd service) directly with a single command:
+
+```bash
+curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest/download/install.sh | bash
+```
+
+### Build & Install from Source
+
+If you prefer building from source, install the build dependencies above, clone the repository, and run the automated installer:
 
 ```bash
 git clone https://github.com/SebaAguiar/evo-linux-control-suite.git
@@ -112,12 +120,11 @@ cd evo-linux-control-suite
 ```
 
 The installer will automatically:
-1. Compile `evo-daemon` in release mode.
-2. Compile `evo-desktop` (Tauri v2) in release mode.
-3. Install the `udev` rules (`99-audient-evo.rules`) and reload `udev`.
-4. Install and enable the `systemd` user service (`evo-daemon.service`).
-5. Install the `evo` command to `~/.local/bin/evo` and `evo-desktop` to `~/.local/bin/evo-desktop`.
-6. Install a desktop application entry (`evo-desktop.desktop`) so it appears in your application launcher.
+1. Detect precompiled binaries or compile `evo-daemon` and `evo-desktop` (Tauri v2) in release mode.
+2. Install the `udev` rules (`70-audient-evo.rules`) and reload `udev` (unprivileged hardware access).
+3. Install and enable the `systemd` user service (`evo-daemon.service`).
+4. Install the `evo` command to `~/.local/bin/evo` and `evo-desktop` to `~/.local/bin/evo-desktop`.
+5. Install desktop application launcher and icons (`evo-control.desktop`).
 
 ---
 
