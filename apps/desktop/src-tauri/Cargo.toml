@@ -25,3 +25,7 @@ tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-single-instance = "2"
+clap = { version = "4.5", features = ["derive"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk-layer-shell = "0.8"

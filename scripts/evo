@@ -163,6 +163,58 @@ missing_libs() {
   ldd "${bin}" 2>/dev/null | awk '/not found/ {print $1}' | sort -u | tr '\n' ' '
 }
 
+desktop_deps_hint() {
+  local distro=""
+  if [[ -r /etc/os-release ]]; then
+    distro="$(
+      # shellcheck disable=SC1091
+      . /etc/os-release 2>/dev/null && printf '%s %s' "${ID:-}" "${ID_LIKE:-}"
+    )"
+  fi
+  case "${distro}" in
+    *arch*) printf '%s' "sudo pacman -S --needed webkit2gtk-4.1 gtk3 gtk-layer-shell" ;;
+    *debian* | *ubuntu*) printf '%s' "sudo apt update && sudo apt install -y libwebkit2gtk-4.1-0 libgtk-3-0 libgtk-layer-shell0" ;;
+    *fedora* | *rhel*) printf '%s' "sudo dnf install -y webkit2gtk4.1 gtk3 gtk-layer-shell" ;;
+    *suse*) printf '%s' "sudo zypper install -y libwebkit2gtk-4_1-0 gtk3 libgtk-layer-shell0" ;;
+    *) printf '%s' "Instalá WebKitGTK 4.1, GTK3 y gtk-layer-shell con el gestor de paquetes de tu distribución." ;;
+  esac
+}
+
+report_desktop_failure() {
+  local bin="" missing="" log="/tmp/evo-desktop.log"
+  if bin="$(find_desktop_bin 2>/dev/null)"; then
+    missing="$(missing_libs "${bin}" 2>/dev/null || true)"
+  fi
+  echo -e "${RED}Error:${RESET} La aplicación de escritorio no pudo iniciar."
+  if [[ -n "${missing}" ]]; then
+    echo -e "  Librerías faltantes: ${RED}${missing}${RESET}"
+  fi
+  if [[ -s "${log}" ]]; then
+    echo "  Últimas líneas de ${log}:"
+    tail -n 8 "${log}" | sed 's/^/    /'
+  fi
+  echo "  Instalá las dependencias con:"
+  echo -e "    ${CYAN}$(desktop_deps_hint)${RESET}"
+}
+
+launch_desktop() {
+  local desktop_bin="$1"
+  shift
+  local log="/tmp/evo-desktop.log"
+  : >"${log}" 2>/dev/null || true
+  nohup "${desktop_bin}" "$@" >>"${log}" 2>&1 &
+  local pid=$!
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 0.2
+    if ! kill -0 "${pid}" 2>/dev/null || [[ "$(ps -o stat= -p "${pid}" 2>/dev/null)" == Z* ]]; then
+      report_desktop_failure
+      return 1
+    fi
+  done
+  return 0
+}
+
 focus_desktop_window() {
   # 1. Niri (Wayland scrollable tiling)
   if command -v niri >/dev/null 2>&1; then
@@ -226,13 +278,18 @@ open_desktop_or_browser() {
     if [[ -n "${missing}" ]]; then
       echo -e "${YELLOW}Aviso:${RESET} La app de escritorio no puede iniciar porque faltan librerías:"
       echo -e "       ${RED}${missing}${RESET}"
-      echo -e "       Instalalas con: ${CYAN}sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0${RESET} (o equivalente)"
+      echo "       Instalalas con:"
+      echo -e "         ${CYAN}$(desktop_deps_hint)${RESET}"
       echo -e "  Abriendo en tu navegador..."
       open_browser "${WEB_URL}"
       return 0
     fi
     echo -e "  Abriendo aplicación de escritorio EVO Control..."
-    nohup "${desktop_bin}" >/tmp/evo-desktop.log 2>&1 &
+    if launch_desktop "${desktop_bin}"; then
+      return 0
+    fi
+    echo -e "  Abriendo en tu navegador..."
+    open_browser "${WEB_URL}"
   else
     echo -e "  Abriendo en tu navegador..."
     open_browser "${WEB_URL}"
@@ -489,16 +546,19 @@ cmd_app() {
       echo -e "       ${RED}${missing}${RESET}"
       echo
       echo -e "Instalalas con:"
-      echo -e "  Ubuntu/Debian: ${CYAN}sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0${RESET}"
-      echo -e "  Arch Linux:    ${CYAN}sudo pacman -S webkit2gtk-4.1 gtk3${RESET}"
-      echo -e "  Fedora:        ${CYAN}sudo dnf install webkit2gtk4.1 gtk3${RESET}"
+      echo -e "  ${CYAN}$(desktop_deps_hint)${RESET}"
       echo
       echo -e "Abriendo interfaz en el navegador..."
       open_browser "${WEB_URL}"
       return 1
     fi
     echo "Abriendo aplicación de escritorio EVO Control..."
-    nohup "${desktop_bin}" "$@" >/tmp/evo-desktop.log 2>&1 &
+    if launch_desktop "${desktop_bin}" "$@"; then
+      return 0
+    fi
+    echo -e "Abriendo interfaz en el navegador..."
+    open_browser "${WEB_URL}"
+    return 1
   else
     echo -e "${YELLOW}Aviso:${RESET} Binario de escritorio no encontrado. Abriendo interfaz web..."
     open_browser "${WEB_URL}"
@@ -511,6 +571,7 @@ cmd_help() {
   echo -e "${BOLD}USO:${RESET}"
   echo "  evo                   Inicia el daemon (si no lo está) y abre la aplicación"
   echo "  evo app               Abre la aplicación de escritorio nativa (Tauri)"
+  echo "  evo panel [opciones]  Abre como applet Wayland (--panel-edge top|bottom|left|right)"
   echo "  evo web               Abre la interfaz web en el navegador"
   echo "  evo start             Inicia el daemon en segundo plano y abre la aplicación"
   echo "  evo qr                Muestra el código QR para conectar el celular"
@@ -521,6 +582,40 @@ cmd_help() {
   echo "  evo dev [opciones]    Ejecuta el daemon en modo interactivo con salida en vivo"
   echo "  evo autostart [on|off] Configura el arranque automático con el sistema"
   echo "  evo help              Muestra esta ayuda"
+}
+
+# Launch desktop in panel/applet mode (for Niri/Noctalia/Waybar)
+panel() {
+  local desktop_bin
+  if ! desktop_bin="$(find_desktop_bin 2>/dev/null)"; then
+    echo -e "${RED}Error:${RESET} evo-desktop no encontrado. Ejecutá './scripts/install.sh' o compílalo." >&2
+    return 1
+  fi
+
+  if pgrep -x evo-desktop >/dev/null 2>&1; then
+    echo -e "${YELLOW}Aviso:${RESET} EVO Control ya está abierto. Cerralo antes de iniciar el modo panel."
+    return 1
+  fi
+
+  if ! is_daemon_running; then
+    echo -e "${CYAN}==>${RESET} Iniciando evo-daemon..."
+    cmd_start "false"
+  fi
+
+  local missing
+  missing="$(missing_libs "${desktop_bin}" 2>/dev/null || true)"
+  if [[ -n "${missing}" ]]; then
+    echo -e "${RED}Error:${RESET} No se puede iniciar el panel; faltan librerías:"
+    echo -e "       ${RED}${missing}${RESET}"
+    echo -e "  ${CYAN}$(desktop_deps_hint)${RESET}"
+    return 1
+  fi
+
+  echo -e "${CYAN}▶${RESET} Lanzando EVO Control en modo panel..."
+  if EVO_PANEL_MODE=1 launch_desktop "${desktop_bin}" --panel "$@"; then
+    return 0
+  fi
+  return 1
 }
 
 ACTION="${1:-default}"
@@ -564,6 +659,10 @@ case "${ACTION}" in
     ;;
   autostart)
     cmd_autostart "${2:-status}"
+    ;;
+  panel)
+    shift || true
+    panel "$@"
     ;;
   help|-h|--help)
     cmd_help

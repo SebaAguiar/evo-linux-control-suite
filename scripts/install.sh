@@ -12,8 +12,11 @@
 #   ./install.sh --no-udev       No tocar /etc/udev (sin sudo)
 #   ./install.sh --no-service    No habilitar el servicio systemd de usuario
 #   ./install.sh --rebuild       Forzar recompilación desde el código (repo)
+#   ./install.sh --install-deps  Instalar dependencias de runtime sin preguntar
+#   ./install.sh --no-deps       No ofrecer instalar dependencias de runtime
 #
-# Variables de entorno equivalentes: EVO_SKIP_UDEV=1, EVO_SKIP_SERVICE=1
+# Variables de entorno equivalentes: EVO_SKIP_UDEV=1, EVO_SKIP_SERVICE=1,
+# EVO_INSTALL_DEPS=yes|no
 
 set -euo pipefail
 
@@ -29,6 +32,7 @@ DATA_DIR="${HOME}/.local/share/evo-suite"
 SKIP_UDEV="${EVO_SKIP_UDEV:-0}"
 SKIP_SERVICE="${EVO_SKIP_SERVICE:-0}"
 REBUILD=0
+INSTALL_DEPS="${EVO_INSTALL_DEPS:-ask}"
 
 REPO_SLUG="SebaAguiar/evo-linux-control-suite"
 RELEASE_BASE="https://github.com/${REPO_SLUG}/releases/latest/download"
@@ -67,9 +71,11 @@ Instalador de EVO Linux Control Suite
   ./install.sh --no-udev       No instala la regla udev (no pide sudo)
   ./install.sh --no-service    No habilita el servicio systemd de usuario
   ./install.sh --rebuild       Fuerza recompilación desde el código fuente
+  ./install.sh --install-deps  Instala WebKitGTK/GTK3 sin preguntar (usa sudo)
+  ./install.sh --no-deps       No ofrece instalar dependencias de runtime
   ./install.sh --help          Muestra esta ayuda
 
-Variables: EVO_SKIP_UDEV=1, EVO_SKIP_SERVICE=1
+Variables: EVO_SKIP_UDEV=1, EVO_SKIP_SERVICE=1, EVO_INSTALL_DEPS=yes|no
 EOF
 }
 
@@ -78,6 +84,8 @@ for arg in "$@"; do
     --rebuild) REBUILD=1 ;;
     --no-udev) SKIP_UDEV=1 ;;
     --no-service) SKIP_SERVICE=1 ;;
+    --install-deps) INSTALL_DEPS="yes" ;;
+    --no-deps) INSTALL_DEPS="no" ;;
     -h | --help)
       usage
       exit 0
@@ -502,13 +510,13 @@ report_missing_libs() {
   warn "${label}: faltan librerías del sistema: ${missing}"
   case "${DISTRO_ID}" in
     *arch*)
-      echo "     sudo pacman -S --needed webkit2gtk-4.1 gtk3 alsa-lib systemd-libs"
+      echo "     sudo pacman -S --needed webkit2gtk-4.1 gtk3 gtk-layer-shell alsa-lib systemd-libs"
       ;;
     *debian* | *ubuntu*)
-      echo "     sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libasound2 libudev1"
+      echo "     sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libgtk-layer-shell0 libasound2 libudev1"
       ;;
     *fedora* | *rhel*)
-      echo "     sudo dnf install webkit2gtk4.1 gtk3 alsa-lib systemd-libs"
+      echo "     sudo dnf install webkit2gtk4.1 gtk3 gtk-layer-shell alsa-lib systemd-libs"
       ;;
     *)
       echo "     Instalá WebKitGTK 4.1, GTK3, ALSA y las librerías de udev."
@@ -516,10 +524,99 @@ report_missing_libs() {
   esac
 }
 
+install_desktop_deps() {
+  info "Instalando dependencias de runtime para la app de escritorio..."
+  case "${DISTRO_ID}" in
+    *arch*)
+      if ! sudo pacman -S --needed --noconfirm webkit2gtk-4.1 gtk3 gtk-layer-shell; then
+        warn "pacman no pudo instalar las dependencias."
+        return 1
+      fi
+      ;;
+    *debian* | *ubuntu*)
+      if ! sudo apt-get update || ! sudo apt-get install -y libwebkit2gtk-4.1-0 libgtk-3-0 libgtk-layer-shell0; then
+        warn "apt no pudo instalar las dependencias."
+        return 1
+      fi
+      ;;
+    *fedora* | *rhel*)
+      if ! sudo dnf install -y webkit2gtk4.1 gtk3 gtk-layer-shell; then
+        warn "dnf no pudo instalar las dependencias."
+        return 1
+      fi
+      ;;
+    *suse*)
+      if ! sudo zypper --non-interactive install libwebkit2gtk-4_1-0 gtk3 libgtk-layer-shell0; then
+        warn "zypper no pudo instalar las dependencias."
+        return 1
+      fi
+      ;;
+    *)
+      warn "Distribución no reconocida; instalá WebKitGTK 4.1 y GTK3 manualmente."
+      return 1
+      ;;
+  esac
+}
+
+ensure_desktop_deps() {
+  local bin="${BIN_DIR}/evo-desktop"
+  [[ -x "${bin}" ]] || return 0
+
+  local missing
+  missing="$(missing_libs "${bin}")"
+  if [[ -z "${missing}" ]]; then
+    ok "Dependencias de evo-desktop presentes."
+    return 0
+  fi
+
+  warn "evo-desktop: faltan librerías del sistema: ${missing}"
+  case "${DISTRO_ID}" in
+    *arch*) echo "     sudo pacman -S --needed webkit2gtk-4.1 gtk3 gtk-layer-shell" ;;
+    *debian* | *ubuntu*) echo "     sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libgtk-layer-shell0" ;;
+    *fedora* | *rhel*) echo "     sudo dnf install webkit2gtk4.1 gtk3 gtk-layer-shell" ;;
+    *suse*) echo "     sudo zypper install libwebkit2gtk-4_1-0 gtk3 libgtk-layer-shell0" ;;
+    *) echo "     Instalá WebKitGTK 4.1, GTK3 y gtk-layer-shell con el gestor de paquetes de tu distro." ;;
+  esac
+
+  case "${INSTALL_DEPS}" in
+    no)
+      return 0
+      ;;
+    yes)
+      ;;
+    *)
+      local answer=""
+      if [[ -r /dev/tty ]]; then
+        read -r -p "     ¿Instalarlas ahora? [s/N] " answer < /dev/tty || true
+      fi
+      case "${answer}" in
+        s | S | si | sí | y | Y | yes) ;;
+        *)
+          echo "     Volvé a ejecutar con --install-deps para instalarlas automáticamente."
+          return 0
+          ;;
+      esac
+      ;;
+  esac
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    warn "No hay sudo disponible; instalá las dependencias manualmente."
+    return 0
+  fi
+
+  install_desktop_deps || true
+
+  missing="$(missing_libs "${bin}")"
+  if [[ -z "${missing}" ]]; then
+    ok "Dependencias de evo-desktop instaladas."
+  else
+    warn "Todavía faltan librerías: ${missing}"
+    echo "     La app de escritorio no arrancará hasta instalarlas; el control web sí funciona."
+  fi
+}
+
 report_missing_libs "${BIN_DIR}/evo-daemon" "evo-daemon"
-if [[ -x "${BIN_DIR}/evo-desktop" ]]; then
-  report_missing_libs "${BIN_DIR}/evo-desktop" "evo-desktop"
-fi
+ensure_desktop_deps
 
 if [[ ":${PATH}:" != *":${BIN_DIR}:"* ]]; then
   warn "${BIN_DIR} no está en tu PATH."

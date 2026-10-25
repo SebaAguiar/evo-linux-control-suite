@@ -1,0 +1,48 @@
+# Maintainer: EVO Linux Control Suite contributors
+# PKGBUILD para instalar el paquete precompilado en Arch Linux / CachyOS.
+#
+# Uso local:
+#   cp dist/cachyos/evo-suite-linux-x86_64.tar.gz packaging/arch/
+#   cd packaging/arch && makepkg -f
+#
+# Para AUR, reemplazá `source` por la URL del release y poné el sha256 real.
+
+pkgname=evo-linux-control-suite-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Control suite for Audient EVO audio interfaces (prebuilt binaries)"
+arch=('x86_64')
+url="https://github.com/SebaAguiar/evo-linux-control-suite"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3' 'gtk-layer-shell')
+optdepends=('libayatana-appindicator: icono de bandeja del sistema')
+provides=('evo-linux-control-suite')
+conflicts=('evo-linux-control-suite')
+options=('!strip')
+
+source=("evo-suite-linux-x86_64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  local suite="${srcdir}/evo-suite-linux-x86_64"
+
+  install -Dm755 "${suite}/evo-daemon" "${pkgdir}/usr/bin/evo-daemon"
+  install -Dm755 "${suite}/evo-desktop" "${pkgdir}/usr/bin/evo-desktop"
+  install -Dm755 "${suite}/evo" "${pkgdir}/usr/bin/evo"
+
+  install -Dm644 "${suite}/packaging/70-audient-evo.rules" \
+    "${pkgdir}/usr/lib/udev/rules.d/70-audient-evo.rules"
+  install -Dm644 "${suite}/packaging/evo-daemon.service" \
+    "${pkgdir}/usr/lib/systemd/user/evo-daemon.service"
+  sed -i 's|%h/.local/bin/evo-daemon|/usr/bin/evo-daemon|' \
+    "${pkgdir}/usr/lib/systemd/user/evo-daemon.service"
+  install -Dm644 "${suite}/packaging/evo-control.desktop" \
+    "${pkgdir}/usr/share/applications/evo-control.desktop"
+
+  install -Dm644 "${suite}/packaging/evo-control.svg" \
+    "${pkgdir}/usr/share/icons/hicolor/scalable/apps/evo-control.svg"
+  install -Dm644 "${suite}/packaging/evo-control.png" \
+    "${pkgdir}/usr/share/icons/hicolor/512x512/apps/evo-control.png"
+
+  install -Dm644 "${suite}/VERSION" "${pkgdir}/usr/share/evo-suite/VERSION"
+}
