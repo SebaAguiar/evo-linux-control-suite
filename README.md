@@ -115,6 +115,8 @@ La app de escritorio necesita **WebKitGTK 4.1**, **GTK 3** y **gtk-layer-shell**
 curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest/download/install.sh | bash -s -- --install-deps
 ```
 
+En Arch/CachyOS el instalador primero verifica si las dependencias ya están presentes (sin tocar el gestor de paquetes), limpia del caché de pacman las descargas falladas que quedaron guardadas como HTML, y si `pacman -S` falla porque la base de datos está atrasada, te ofrece actualizar el sistema con `pacman -Syu` antes de reintentar.
+
 Si preferís que el gestor de paquetes resuelva las dependencias automáticamente, usá el `.deb` en Debian/Ubuntu.
 
 ### Build & Install from Source
