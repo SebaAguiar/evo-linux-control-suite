@@ -1004,8 +1004,8 @@ const year = new Date().getFullYear();
                       data-command="curl -fLO https://sebaaguiar.github.io/evo-linux-control-suite/downloads/evo-suite-linux-x86_64.tar.gz &amp;&amp; tar -xzf evo-suite-linux-x86_64.tar.gz &amp;&amp; ./evo-suite-linux-x86_64/install.sh --install-deps"
                       data-output="Instalador universal para cualquier distro: detecta WebKitGTK, GTK3 y gtk-layer-shell e instala lo que falte">Instalador universal</button>
                     <button role="tab" aria-selected="false"
-                      data-command="curl -fLO https://sebaaguiar.github.io/evo-linux-control-suite/downloads/evo-linux-control-suite-bin-1.0.0-1-x86_64.pkg.tar.zst &amp;&amp; sudo pacman -U evo-linux-control-suite-bin-1.0.0-1-x86_64.pkg.tar.zst"
-                      data-output="Paquete nativo para Arch / CachyOS; pacman resuelve webkit2gtk-4.1, gtk3 y gtk-layer-shell">Arch / CachyOS</button>
+                      data-command="curl -fLO https://sebaaguiar.github.io/evo-linux-control-suite/downloads/install-arch.sh &amp;&amp; bash install-arch.sh"
+                      data-output="Paquete nativo para Arch / CachyOS: verifica webkit2gtk-4.1, gtk3 y gtk-layer-shell, limpia descargas falladas del caché de pacman y sincroniza la base de datos si está atrasada">Arch / CachyOS</button>
                     <button role="tab" aria-selected="false"
                       data-command="wget https://github.com/SebaAguiar/evo-linux-control-suite/releases/download/v1.0.0/EVO.Linux.Control.Suite_1.0.0_amd64.deb &amp;&amp; sudo apt install ./EVO.Linux.Control.Suite_1.0.0_amd64.deb"
                       data-output="App de escritorio en .deb; completá con la suite universal para instalar el daemon">Debian / Ubuntu</button>
@@ -1019,7 +1019,8 @@ const year = new Date().getFullYear();
                     <br />
                     Descargas directas:
                     <a href="https://sebaaguiar.github.io/evo-linux-control-suite/downloads/evo-suite-linux-x86_64.tar.gz">suite universal</a>,
-                    <a href="https://sebaaguiar.github.io/evo-linux-control-suite/downloads/evo-linux-control-suite-bin-1.0.0-1-x86_64.pkg.tar.zst">Arch / CachyOS</a>
+                    <a href="https://sebaaguiar.github.io/evo-linux-control-suite/downloads/install-arch.sh">instalador Arch / CachyOS</a>,
+                    <a href="https://sebaaguiar.github.io/evo-linux-control-suite/downloads/evo-linux-control-suite-bin-1.0.0-1-x86_64.pkg.tar.zst">paquete Arch / CachyOS</a>
                     y <a href="https://sebaaguiar.github.io/evo-linux-control-suite/downloads/SHA256SUMS">SHA256SUMS</a>.
                   </p>
                   <p class="install-note reveal">

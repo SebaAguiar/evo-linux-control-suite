@@ -117,6 +117,12 @@ curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest
 
 En Arch/CachyOS el instalador primero verifica si las dependencias ya están presentes (sin tocar el gestor de paquetes), limpia del caché de pacman las descargas falladas que quedaron guardadas como HTML, y si `pacman -S` falla porque la base de datos está atrasada, te ofrece actualizar el sistema con `pacman -Syu` antes de reintentar.
 
+Si preferís el paquete nativo (`pacman -U`, rutas en `/usr`, regla udev y servicio systemd del sistema), usá el instalador específico:
+
+```bash
+curl -fLO https://sebaaguiar.github.io/evo-linux-control-suite/downloads/install-arch.sh && bash install-arch.sh
+```
+
 Si preferís que el gestor de paquetes resuelva las dependencias automáticamente, usá el `.deb` en Debian/Ubuntu.
 
 ### Build & Install from Source
