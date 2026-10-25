@@ -20,6 +20,18 @@
         "minHeight": 300,
         "center": true,
         "resizable": true
+      },
+      {
+        "label": "panel",
+        "title": "EVO Control Panel",
+        "width": 620,
+        "height": 360,
+        "decorations": false,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": false
       }
     ],
     "security": {

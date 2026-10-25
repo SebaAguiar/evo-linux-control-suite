@@ -57,9 +57,9 @@
   height: 330px;
 }
 
-/* Tres formatos reales de instalación (no hay AUR ni AppImage publicados). */
+/* Formatos reales de instalación (no hay AUR ni AppImage publicados). */
 .install-tabs {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 
 /* El layout de dos columnas del diseño desborda al apilarse: la columna

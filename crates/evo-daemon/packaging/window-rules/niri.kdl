@@ -1,0 +1,7 @@
+// EVO Control — Niri window rule
+window-rule {
+    match app-id="evo-desktop"
+    open-floating true
+    default-column-width { fixed 620; }
+    default-window-height { fixed 360; }
+}

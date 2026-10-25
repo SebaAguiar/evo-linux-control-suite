@@ -109,6 +109,14 @@ You can install the complete precompiled suite (`evo-daemon`, `evo-desktop`, `ev
 curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest/download/install.sh | bash
 ```
 
+La app de escritorio necesita **WebKitGTK 4.1**, **GTK 3** y **gtk-layer-shell** (para el modo panel) en tiempo de ejecución. Si el instalador detecta que faltan, te ofrece instalarlas; también podés forzarlo sin preguntas:
+
+```bash
+curl -fsSL https://github.com/SebaAguiar/evo-linux-control-suite/releases/latest/download/install.sh | bash -s -- --install-deps
+```
+
+Si preferís que el gestor de paquetes resuelva las dependencias automáticamente, usá el `.deb` en Debian/Ubuntu.
+
 ### Build & Install from Source
 
 If you prefer building from source, install the build dependencies above, clone the repository, and run the automated installer:
