@@ -14,8 +14,10 @@
  *   TAG            tag del release, p. ej. v1.0.1
  *   REPO           repositorio que aloja el release, p. ej. usuario/repo
  *   NOTES_FILE     notas del release (por defecto CHANGELOG.md)
- *   BUNDLE_PREFIX  prefijo de los paquetes de la app
- *                  (por defecto "EVO.Linux.Control.Suite_")
+ *
+ * Los paquetes se reconocen por su forma (`<nombre>_<versión>_<arch>.<formato>`)
+ * y no por el nombre del producto: tauri-bundler genera `<productName>_...`, que
+ * puede llevar espacios según la versión del bundler.
  */
 import { readdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -24,7 +26,6 @@ const dir = process.env.ARTIFACTS_DIR;
 const tag = process.env.TAG;
 const repo = process.env.REPO;
 const notesFile = process.env.NOTES_FILE ?? 'CHANGELOG.md';
-const prefix = process.env.BUNDLE_PREFIX ?? 'EVO.Linux.Control.Suite_';
 
 if (!dir || !tag || !repo) {
   console.error(
@@ -34,12 +35,19 @@ if (!dir || !tag || !repo) {
 }
 
 const version = tag.replace(/^v/, '');
-const files = readdirSync(dir)
-  .filter((file) => file.startsWith(prefix))
-  .sort();
+
+/** `..._1.0.1_amd64.deb`, `..._1.0.1_amd64.AppImage.tar.gz`, `..._1.0.1_amd64.rpm`. */
+const ASSET_PATTERN =
+  /_(\d+\.\d+\.\d+(?:[-+][^_/]*)?)_([A-Za-z0-9_]+)\.(?:AppImage|deb|rpm)(?:\.tar\.gz)?$/;
+
+const allFiles = readdirSync(dir).sort();
+const files = allFiles.filter((file) => !file.endsWith('.sig') && ASSET_PATTERN.test(file));
 
 if (files.length === 0) {
-  console.error(`No hay paquetes "${prefix}*" en ${dir}; no se puede generar latest.json.`);
+  console.error(
+    `No hay paquetes instalables (<nombre>_<versión>_<arch>.<formato>) en ${dir}; ` +
+      'no se puede generar latest.json.',
+  );
   process.exit(1);
 }
 
@@ -47,7 +55,7 @@ const downloadUrl = (asset) => `https://github.com/${repo}/releases/download/${t
 
 const readSignature = (asset) => {
   const sigFile = `${asset}.sig`;
-  if (!files.includes(sigFile)) {
+  if (!allFiles.includes(sigFile)) {
     throw new Error(
       `falta la firma de ${asset} (esperaba ${sigFile}); revisá TAURI_SIGNING_PRIVATE_KEY`,
     );
@@ -60,7 +68,7 @@ const readSignature = (asset) => {
 };
 
 /** Versión codificada en el nombre del paquete: `..._1.0.1_amd64.deb`. */
-const versionOf = (asset) => asset.slice(prefix.length).split('_')[0];
+const versionOf = (asset) => ASSET_PATTERN.exec(asset)?.[1] ?? '';
 
 const pick = (predicate) => files.find(predicate);
 
@@ -100,7 +108,7 @@ try {
 
   if (Object.keys(platforms).length === 0) {
     throw new Error(
-      `Ningún paquete "${prefix}*" sirve para el updater ` +
+      'Ningún paquete sirve para el updater ' +
         '(se esperaba .AppImage[.tar.gz], .deb o .rpm con su .sig).',
     );
   }
