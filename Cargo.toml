@@ -50,7 +50,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt"] }
 
 # Cliente WebSocket para los tests de integración de `evo-remote`. Es la misma
 # pila `tungstenite` que usa axum, así que el test habla el protocolo real.
-tokio-tungstenite = "0.26"
+tokio-tungstenite = "0.29"
 
 # El perfil de release del binario vive aquí: Cargo ignora [profile.*] en los
 # paquetes que no son la raíz del workspace (avisa y lo descarta).
