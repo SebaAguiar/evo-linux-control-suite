@@ -266,6 +266,18 @@ jobs:
           name: evo-desktop-appimage
           path: release-assets/
 
+      # tauri-bundler nombra los paquetes con el productName, que puede llevar
+      # espacios ("EVO Linux Control Suite_1.0.1_amd64.deb"). Se normalizan a
+      # puntos para que la URL del manifest no tenga espacios.
+      - name: Normalizar nombres de paquetes
+        run: |
+          for file in release-assets/*; do
+            [[ -f "$file" ]] || continue
+            name="$(basename "$file")"
+            [[ "$name" == *" "* ]] || continue
+            mv "$file" "release-assets/${name// /.}"
+          done
+
       - name: Empaquetar EVO Suite autónomo y bootstrap
         run: |
           tar -xzf release-assets/tmp-daemon/evo-daemon-linux-x86_64.tar.gz -C release-assets/tmp-daemon/
