@@ -216,6 +216,7 @@ jobs:
           name: evo-desktop-appimage
           path: |
             target/release/bundle/appimage/*.AppImage
+            target/release/bundle/appimage/*.AppImage.sig
             target/release/bundle/appimage/*.AppImage.tar.gz
             target/release/bundle/appimage/*.AppImage.tar.gz.sig
           retention-days: 14
