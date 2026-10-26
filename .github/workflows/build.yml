@@ -115,7 +115,7 @@ jobs:
           tar -czvf evo-daemon-linux-x86_64.tar.gz -C dist/daemon .
 
       - name: Subir artefacto del Daemon
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: evo-daemon-linux-x86_64
           path: evo-daemon-linux-x86_64.tar.gz
@@ -193,7 +193,7 @@ jobs:
           tar -czvf evo-desktop-linux-x86_64.tar.gz -C dist/desktop .
 
       - name: Subir artefacto binario standalone
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: evo-desktop-linux-x86_64
           path: evo-desktop-linux-x86_64.tar.gz
@@ -201,7 +201,7 @@ jobs:
 
       - name: Subir paquete instalable .deb y firmas
         if: ${{ inputs.create_deb || startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: evo-desktop-deb
           path: |
@@ -211,7 +211,7 @@ jobs:
 
       - name: Subir AppImage, su payload firmado y firmas
         if: ${{ inputs.create_deb || startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: evo-desktop-appimage
           path: |
