@@ -9,6 +9,14 @@ Releases and changelog entries follow [Conventional Commits](https://www.convent
 
 ---
 
+## [1.0.1] - 2026-10-26
+
+### Fixed
+
+- **Auto-updater:** the release workflow now builds the AppImage alongside the `.deb` and publishes a signed `latest.json`, so in-app updates are actually delivered. The manifest only advertises the formats the Tauri plugin can install (`linux-x86_64-appimage`, `-deb`, `-rpm`), verifies every signature, and fails loudly instead of silently skipping the manifest.
+- **Remote QR / LAN detection:** `/api/info` now sends CORS headers for accepted origins, so the desktop app no longer reports "no se detectó una IP de red Wi-Fi/LAN activa" when the LAN listener is up. The QR modal distinguishes "no LAN IP", "remote server disabled" and "daemon unreachable".
+- **Arch/CachyOS installer:** dependencies are skipped when already satisfied, HTML error pages cached as packages are purged, and a stale pacman database now offers a full `pacman -Syu` before retrying. Added `install-arch.sh` for the native package path.
+
 ## [1.0.0] - 2026-10-19
 
 First official stable release of the **EVO Linux Control Suite** adhering to Semantic Versioning (SemVer).
