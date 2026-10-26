@@ -1230,6 +1230,8 @@ dependencies = [
  "evo-domain",
  "evo-ipc",
  "evo-mock",
+ "evo-persist",
+ "evo-ports",
  "futures-util",
  "if-addrs",
  "qrcode",

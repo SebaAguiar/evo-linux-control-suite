@@ -200,7 +200,13 @@ impl Daemon {
             .clone()
             .or_else(|| loaded.as_ref().map(|doc| doc.server.clone()))
             .unwrap_or_default();
-        let (loopback, lan) = serve(&core, &server, config.allow_public_peers).await?;
+        let (loopback, lan) = serve(
+            &core,
+            &server,
+            config.allow_public_peers,
+            Some(config.state_path.clone()),
+        )
+        .await?;
 
         // 5. Guardado con *debounce*.
         let (persist_stop, persist_rx) = oneshot::channel();
@@ -324,6 +330,7 @@ async fn serve(
     core: &Arc<EvoCore>,
     server: &ServerConfig,
     allow_public_peers: bool,
+    state_path: Option<PathBuf>,
 ) -> Result<(RemoteHandle, Option<RemoteHandle>), DaemonError> {
     let loopback_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), server.port);
     let lan_addr = if server.enabled {
@@ -356,6 +363,8 @@ async fn serve(
             bind: loopback_addr,
             lan_addr,
             allow_public_peers,
+            server_config: server.clone(),
+            state_path: state_path.clone(),
             ..RemoteConfig::default()
         },
     )
@@ -372,6 +381,8 @@ async fn serve(
                 bind: addr,
                 lan_addr: Some(addr),
                 allow_public_peers,
+                server_config: server.clone(),
+                state_path,
                 ..RemoteConfig::default()
             },
         )
