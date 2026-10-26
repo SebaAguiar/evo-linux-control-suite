@@ -27,18 +27,24 @@ pub mod peer;
 mod ws;
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 use axum::Router;
-use axum::extract::{Request, State};
+use axum::extract::{Json, Request, State};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use evo_core::EvoCore;
+use evo_domain::{PersistedState, ServerConfig};
+use evo_persist::FileStateRepo;
+use evo_ports::StateRepo;
 use tokio::net::TcpListener;
-use tokio::sync::oneshot;
+use tokio::sync::{RwLock, oneshot};
 use tokio::task::JoinHandle;
 
 pub use peer::{OriginPolicy, is_allowed_origin, is_allowed_peer};
@@ -48,6 +54,8 @@ pub use peer::{OriginPolicy, is_allowed_origin, is_allowed_peer};
 pub(crate) struct AppState {
     pub(crate) core: Arc<EvoCore>,
     pub(crate) config: Arc<RemoteConfig>,
+    pub(crate) server_config: Arc<RwLock<ServerConfig>>,
+    pub(crate) state_path: Option<PathBuf>,
 }
 
 /// Ajustes del servidor remoto.
@@ -72,6 +80,10 @@ pub struct RemoteConfig {
     pub lan_addr: Option<SocketAddr>,
     /// Tamaño máximo de mensaje entrante aceptado por el WebSocket.
     pub max_message_bytes: usize,
+    /// Configuración persistida del servidor ([server]) para exponerla vía API.
+    pub server_config: ServerConfig,
+    /// Ruta al config.toml para guardar cambios desde la UI.
+    pub state_path: Option<PathBuf>,
 }
 
 impl Default for RemoteConfig {
@@ -84,6 +96,8 @@ impl Default for RemoteConfig {
             allowed_origins: Vec::new(),
             meter_interval: Duration::from_millis(33),
             max_message_bytes: 64 * 1024,
+            server_config: ServerConfig::default(),
+            state_path: None,
         }
     }
 }
@@ -121,14 +135,21 @@ impl RemoteHandle {
 /// Separado de [`serve`] para poder montarlo en tests o componerlo con otras
 /// rutas sin abrir un puerto.
 pub fn router(core: Arc<EvoCore>, config: RemoteConfig) -> Router {
+    let server_config = Arc::new(RwLock::new(config.server_config.clone()));
+    let state_path = config.state_path.clone();
     let state = AppState {
         core,
         config: Arc::new(config),
+        server_config,
+        state_path,
     };
     Router::new()
         .route("/healthz", get(healthz))
         .route("/api/info", get(api_info))
         .route("/api/qr.svg", get(api_qr_svg))
+        .route("/api/config", get(api_config))
+        .route("/api/config/server", post(api_config_server))
+        .route("/api/version", get(api_version))
         .route("/", get(index))
         .route("/ws", get(ws::upgrade))
         .with_state(state.clone())
@@ -215,6 +236,92 @@ pub async fn serve(core: Arc<EvoCore>, config: RemoteConfig) -> std::io::Result<
 
 async fn healthz() -> &'static str {
     "ok"
+}
+
+async fn api_config(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let server = state.server_config.read().await.clone();
+    let listening_on = state.config.lan_addr.or_else(|| Some(state.config.bind));
+    Json(serde_json::json!({
+        "server": server,
+        "listening_on": listening_on.map(|a| a.to_string()),
+        "bind": state.config.bind.to_string(),
+        "lan_addr": state.config.lan_addr.map(|a| a.to_string()),
+    }))
+}
+
+#[derive(serde::Deserialize)]
+struct ServerConfigUpdate {
+    enabled: Option<bool>,
+    interface: Option<String>,
+    port: Option<u16>,
+}
+
+async fn api_config_server(
+    State(state): State<AppState>,
+    Json(update): Json<ServerConfigUpdate>,
+) -> Response {
+    let mut server = state.server_config.read().await.clone();
+    if let Some(enabled) = update.enabled {
+        server.enabled = enabled;
+    }
+    if update.interface.is_some() {
+        server.interface = update.interface.clone();
+    }
+    if let Some(port) = update.port {
+        if port > 0 {
+            server.port = port;
+        }
+    }
+
+    let repo_path = match &state.state_path {
+        Some(p) => p.clone(),
+        None => evo_persist::xdg::config_path(),
+    };
+    let repo = FileStateRepo::new(&repo_path);
+    if let Ok(Some(mut doc)) = repo.load() {
+        doc.server = server.clone();
+        if let Err(err) = repo.save(&doc) {
+            tracing::warn!(error = %err, "no se pudo guardar config.toml desde /api/config/server");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"ok": false, "error": "save_failed"})),
+            )
+                .into_response();
+        }
+    } else {
+        let snapshot = state.core.snapshot();
+        let mut doc = PersistedState::new(snapshot.profile, snapshot.state, now_ms());
+        doc.server = server.clone();
+        if let Err(err) = repo.save(&doc) {
+            tracing::warn!(error = %err, "no se pudo guardar config.toml desde /api/config/server");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"ok": false, "error": "save_failed"})),
+            )
+                .into_response();
+        }
+    }
+
+    *state.server_config.write().await = server.clone();
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"ok": true, "server": server, "restart_required": true})),
+    )
+        .into_response()
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+async fn api_version() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "name": "evo-linux-control-suite",
+    }))
 }
 
 /// Resuelve dinámicamente la IPv4 local activa consultando la tabla de
@@ -366,8 +473,10 @@ mod tests {
             ..RemoteConfig::default()
         };
         let info = api_info(axum::extract::State(AppState {
-            core,
-            config: Arc::new(config),
+            core: core.clone(),
+            config: Arc::new(config.clone()),
+            server_config: Arc::new(RwLock::new(config.server_config.clone())),
+            state_path: None,
         }))
         .await;
 
@@ -393,8 +502,10 @@ mod tests {
         let res = api_qr_svg(
             axum::extract::Query(QrQuery { url: None }),
             axum::extract::State(AppState {
-                core,
-                config: Arc::new(config),
+                core: core.clone(),
+                config: Arc::new(config.clone()),
+                server_config: Arc::new(RwLock::new(config.server_config.clone())),
+                state_path: None,
             }),
         )
         .await;
@@ -418,8 +529,10 @@ mod tests {
             ..RemoteConfig::default()
         };
         let info = api_info(axum::extract::State(AppState {
-            core,
-            config: Arc::new(config),
+            core: core.clone(),
+            config: Arc::new(config.clone()),
+            server_config: Arc::new(RwLock::new(config.server_config.clone())),
+            state_path: None,
         }))
         .await;
 

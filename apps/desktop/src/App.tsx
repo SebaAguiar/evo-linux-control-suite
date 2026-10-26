@@ -9,12 +9,14 @@ import { SteppersBar } from "./components/SteppersBar";
 import { ChannelStrip } from "./components/ChannelStrip";
 import { CenterCluster } from "./components/CenterCluster";
 import { QrModal } from "./components/QrModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { ToastBanner } from "./components/ToastBanner";
 import "./App.css";
 
 export function App() {
   const [activeMode, setActiveMode] = useState<ActiveMode>("ch0");
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const { theme, toggleTheme } = useTheme();
   const updater = useUpdater();
@@ -107,10 +109,19 @@ export function App() {
     <div className="evo-window" data-theme={theme}>
       <ToastBanner toast={toast} />
       <QrModal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        updateInfo={updater.updateInfo}
+        downloading={updater.downloading}
+        progress={updater.progress}
+        onDownloadUpdate={updater.downloadAndInstall}
+      />
 
       <TitleBar
         connStatus={connStatus}
         onOpenQr={() => setIsQrOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         updateInfo={updater.updateInfo}
         downloading={updater.downloading}
         progress={updater.progress}
