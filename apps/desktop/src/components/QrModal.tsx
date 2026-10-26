@@ -6,25 +6,45 @@ interface QrModalProps {
   onClose: () => void;
 }
 
+type QrStatus = "unknown" | "ok" | "no-lan" | "server-off" | "unreachable";
+
+const STATUS_TEXT: Record<QrStatus, string> = {
+  unknown:
+    "Apunta con la cámara de tu celular para abrir EVO Control en la misma red Wi-Fi sin escribir la IP.",
+  ok: "Apunta con la cámara de tu celular para abrir EVO Control en la misma red Wi-Fi sin escribir la IP.",
+  "no-lan":
+    "Aviso: No se detectó una IP de red Wi-Fi/LAN activa. Conéctate a una red para permitir acceso desde el celular.",
+  "server-off":
+    "Aviso: El servidor remoto está desactivado. Poné [server] enabled = true en ~/.config/evo-suite/config.toml y reiniciá el daemon.",
+  unreachable:
+    "Aviso: No se pudo consultar el daemon en 127.0.0.1:8080. Verificá que evo-daemon esté corriendo.",
+};
+
 export const QrModal: React.FC<QrModalProps> = ({ isOpen, onClose }) => {
   const [targetUrl, setTargetUrl] = useState("http://localhost:8080");
+  const [status, setStatus] = useState<QrStatus>("unknown");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
 
     let active = true;
+    setStatus("unknown");
     async function fetchInfo() {
       try {
         const res = await fetch("http://127.0.0.1:8080/api/info");
-        if (res.ok) {
-          const data: ServerInfo = await res.json();
-          if (active && data.lan_url) {
-            setTargetUrl(data.lan_url);
-          }
+        if (!res.ok) {
+          if (active) setStatus("unreachable");
+          return;
         }
+        const data: ServerInfo = await res.json();
+        if (!active) return;
+        if (data.lan_url) setTargetUrl(data.lan_url);
+        if (!data.lan_url) setStatus("no-lan");
+        else if (data.server_enabled === false) setStatus("server-off");
+        else setStatus("ok");
       } catch {
-        // Fallback local
+        if (active) setStatus("unreachable");
       }
     }
     fetchInfo();
@@ -50,7 +70,7 @@ export const QrModal: React.FC<QrModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const isLocalhost = targetUrl.includes("localhost") || targetUrl.includes("127.0.0.1");
+  const isWarning = status === "no-lan" || status === "server-off" || status === "unreachable";
 
   return (
     <div className="qr-modal-overlay" onClick={onClose}>
@@ -69,10 +89,8 @@ export const QrModal: React.FC<QrModalProps> = ({ isOpen, onClose }) => {
           />
         </div>
 
-        <p className="qr-instructions" style={{ color: isLocalhost ? "#ff9f0a" : "#aaa" }}>
-          {isLocalhost
-            ? "Aviso: No se detectó una IP de red Wi-Fi/LAN activa. Conéctate a una red para permitir acceso desde el celular."
-            : "Apunta con la cámara de tu celular para abrir EVO Control en la misma red Wi-Fi sin escribir la IP."}
+        <p className="qr-instructions" style={{ color: isWarning ? "#ff9f0a" : "#aaa" }}>
+          {STATUS_TEXT[status]}
         </p>
 
         <div className="qr-url-box">
