@@ -1915,17 +1915,17 @@
     async function updateQrModal() {
       const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       let targetUrl = window.location.origin;
+      let lanUrl = null;
+      let serverEnabled = null;
 
       try {
         const res = await fetch("/api/info");
         if (res.ok) {
           const info = await res.json();
-          if (isLocalhost && info.lan_url) {
-            targetUrl = info.lan_url;
-          } else if (!isLocalhost) {
-            targetUrl = window.location.origin;
-          } else if (info.lan_url) {
-            targetUrl = info.lan_url;
+          lanUrl = info.lan_url || null;
+          serverEnabled = info.server_enabled !== false;
+          if (isLocalhost && lanUrl) {
+            targetUrl = lanUrl;
           }
         }
       } catch (e) {
@@ -1937,7 +1937,10 @@
 
       const instructions = document.querySelector(".qr-instructions");
       if (instructions) {
-        if (targetUrl.includes("localhost") || targetUrl.includes("127.0.0.1")) {
+        if (serverEnabled === false) {
+          instructions.textContent = "Aviso: El servidor remoto está desactivado. Activá [server] enabled = true en ~/.config/evo-suite/config.toml y reiniciá el daemon.";
+          instructions.style.color = "#ff9f0a";
+        } else if (isLocalhost && !lanUrl) {
           instructions.textContent = "Aviso: No se detectó una IP de red Wi-Fi/LAN activa. Conéctate a una red para permitir acceso desde el celular.";
           instructions.style.color = "#ff9f0a";
         } else {

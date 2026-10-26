@@ -23,6 +23,7 @@ export type ClientCommand =
 
 export interface ServerInfo {
   loopback_url: string;
-  lan_url?: string;
+  lan_url?: string | null;
   port: number;
+  server_enabled?: boolean;
 }

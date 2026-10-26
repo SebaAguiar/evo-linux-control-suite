@@ -27,3 +27,5 @@ tracing.workspace = true
 evo-mock.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 tokio-tungstenite.workspace = true
+# `oneshot` sobre el `Router` para probar las cabeceras CORS sin abrir puertos.
+tower = { version = "0.5", features = ["util"] }

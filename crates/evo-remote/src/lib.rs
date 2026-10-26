@@ -31,7 +31,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use axum::response::Html;
+use axum::extract::{Request, State};
+use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::middleware::{self, Next};
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use evo_core::EvoCore;
 use tokio::net::TcpListener;
@@ -128,7 +131,59 @@ pub fn router(core: Arc<EvoCore>, config: RemoteConfig) -> Router {
         .route("/api/qr.svg", get(api_qr_svg))
         .route("/", get(index))
         .route("/ws", get(ws::upgrade))
-        .with_state(state)
+        .with_state(state.clone())
+        .layer(middleware::from_fn_with_state(state, cors_headers))
+}
+
+/// Añade `Access-Control-Allow-Origin` a los orígenes que la política acepta.
+///
+/// El cliente de escritorio (Tauri) sirve su UI desde `tauri.localhost`, así que
+/// su `fetch` a `/api/info` es *cross-origin*: sin esta cabecera el webview
+/// bloquea la respuesta y la app cae al fallback de loopback aunque haya LAN.
+async fn cors_headers(State(state): State<AppState>, req: Request, next: Next) -> Response {
+    let origin = req
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+
+    let allowed = origin.as_deref().is_some_and(|origin| {
+        is_allowed_origin(
+            Some(origin),
+            state.config.origin,
+            &state.config.allowed_origins,
+        )
+    });
+
+    let origin = origin.filter(|_| allowed);
+
+    if req.method() == Method::OPTIONS {
+        return with_cors(StatusCode::NO_CONTENT.into_response(), origin.as_deref());
+    }
+
+    with_cors(next.run(req).await, origin.as_deref())
+}
+
+/// Añade las cabeceras CORS para el `Origin` ya validado.
+fn with_cors(mut res: Response, origin: Option<&str>) -> Response {
+    let Some(origin) = origin else {
+        return res;
+    };
+    let Ok(value) = HeaderValue::from_str(origin) else {
+        return res;
+    };
+    let headers = res.headers_mut();
+    headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, value);
+    headers.insert(header::VARY, HeaderValue::from_static("Origin"));
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET, OPTIONS"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("content-type"),
+    );
+    res
 }
 
 /// Enlaza `config.bind` y sirve hasta que se llame a
@@ -232,6 +287,7 @@ async fn api_info(
         "loopback_url": loopback_url,
         "lan_url": lan_url,
         "port": port,
+        "server_enabled": state.config.lan_addr.is_some(),
     }))
 }
 
@@ -347,6 +403,96 @@ mod tests {
         assert_eq!(
             res.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
             "image/svg+xml"
+        );
+    }
+
+    #[tokio::test]
+    async fn api_info_marca_el_servidor_remoto_como_deshabilitado() {
+        let core = Arc::new(EvoCore::spawn(
+            Box::new(MockDevice::new(ModelId::Evo4)),
+            CoreConfig::default(),
+        ));
+        let config = RemoteConfig {
+            bind: SocketAddr::from(([127, 0, 0, 1], 8080)),
+            lan_addr: None,
+            ..RemoteConfig::default()
+        };
+        let info = api_info(axum::extract::State(AppState {
+            core,
+            config: Arc::new(config),
+        }))
+        .await;
+
+        assert_eq!(info.0["server_enabled"], false);
+    }
+
+    fn app_para_cors() -> Router {
+        let core = Arc::new(EvoCore::spawn(
+            Box::new(MockDevice::new(ModelId::Evo4)),
+            CoreConfig::default(),
+        ));
+        router(core, RemoteConfig::default())
+    }
+
+    fn pedido(origin: &str) -> Request {
+        Request::builder()
+            .uri("/api/info")
+            .header(header::ORIGIN, origin)
+            .body(axum::body::Body::empty())
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn cors_permite_origenes_locales_y_rechaza_publicos() {
+        use tower::ServiceExt;
+
+        let respuesta = app_para_cors()
+            .oneshot(pedido("http://tauri.localhost"))
+            .await
+            .unwrap();
+        assert_eq!(
+            respuesta
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .unwrap(),
+            "http://tauri.localhost"
+        );
+
+        let rechazada = app_para_cors()
+            .oneshot(pedido("http://evil.example.com"))
+            .await
+            .unwrap();
+        assert!(
+            rechazada
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn cors_responde_al_preflight() {
+        use tower::ServiceExt;
+
+        let respuesta = app_para_cors()
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/api/info")
+                    .header(header::ORIGIN, "http://tauri.localhost")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(respuesta.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            respuesta
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .unwrap(),
+            "http://tauri.localhost"
         );
     }
 }
