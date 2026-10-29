@@ -887,17 +887,33 @@ const year = new Date().getFullYear();
                       <div class="changelog-group">
                         <h4>
                           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="9"></circle>
-                            <path d="m12 3 0 9 6 3"></path>
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
                           </svg>
-                          Control Analógico de Hardware (EVO 4)
+                          Tiling WMs & Ventana Flotante
                         </h4>
                         <ul class="changelog-list">
-                          <li><strong>Ganancia analógica:</strong> Ajuste preciso de preamplificadores de 0 dB a 58 dB con pasos de 0.5 dB y 2.0 dB.</li>
-                          <li><strong>Phantom Power +48V:</strong> Activación segura e independiente por canal con protección de conmutación de relés.</li>
-                          <li><strong>Mute físico y digital:</strong> Silenciado instantáneo de entradas con retroalimentación visual en vivo.</li>
-                          <li><strong>Monitor Mix Pan:</strong> Balance y mezcla de monitoreo directo entre entrada física y retorno del sistema.</li>
-                          <li><strong>Salida general:</strong> Control de volumen master de auriculares y monitores de estudio.</li>
+                          <li><strong>Reglas universales automáticas:</strong> Soporte listo para Hyprland, Sway, Niri, River, i3 y bspwm.</li>
+                          <li><strong>Instancia única nativa:</strong> Evita procesos duplicados y enfoca la ventana existente al invocar la app.</li>
+                          <li><strong>Plantillas portables:</strong> Snippets incluidos en <code>~/.local/share/evo-suite/window-rules/</code> para dotfiles.</li>
+                          <li><strong>Auto-detección en el instalador:</strong> Configuración segura y no invasiva durante <code>install.sh</code>.</li>
+                        </ul>
+                      </div>
+                      <div class="changelog-group">
+                        <h4>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                          </svg>
+                          Paquete Nativo Arch / CachyOS
+                        </h4>
+                        <ul class="changelog-list">
+                          <li><strong>Formato nativo pacman:</strong> Paquete <code>.pkg.tar.zst</code> publicado en GitHub Releases y landing.</li>
+                          <li><strong>Instalador inteligente:</strong> <code>install-arch.sh</code> resuelve dependencias y limpia caché corrupto.</li>
+                          <li><strong>Descarga redundante:</strong> Fallback automático a GitHub Releases si el CDN de la web tarda en propagar.</li>
+                          <li><strong>Validación SHA-256:</strong> Verificación estricta de sumas de control criptográficas antes de instalar.</li>
                         </ul>
                       </div>
                       <div class="changelog-group">
@@ -906,45 +922,28 @@ const year = new Date().getFullYear();
                             <rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect>
                             <path d="M12 18h.01"></path>
                           </svg>
-                          Control Remoto Web Móvil
+                          Control Remoto Web & LAN
                         </h4>
                         <ul class="changelog-list">
-                          <li><strong>Sin instalar aplicaciones:</strong> Funciona directamente en cualquier navegador moderno (iOS, Android).</li>
+                          <li><strong>Sin instalar aplicaciones:</strong> Funciona directamente en cualquier navegador móvil (iOS, Android).</li>
                           <li><strong>Sincronización WebSocket:</strong> Conexión bidireccional en tiempo real con latencia despreciable.</li>
-                          <li><strong>Emparejamiento QR instantáneo:</strong> Escanea el código en pantalla desde el teléfono para conectarte al vuelo.</li>
-                          <li><strong>Seguridad de red privada:</strong> Validación de orígenes locales bajo RFC 1918 para evitar accesos indebidos en tu red.</li>
+                          <li><strong>Toggle de servidor LAN:</strong> Control de privacidad para habilitar o deshabilitar el acceso en tu red local.</li>
+                          <li><strong>Emparejamiento QR instantáneo:</strong> Escaneo directo desde el modal de la app o terminal con <code>evo qr</code>.</li>
                         </ul>
                       </div>
                       <div class="changelog-group">
                         <h4>
                           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="m4.93 4.93 4.24 4.24"></path>
-                            <path d="m14.83 9.17 4.24-4.24"></path>
-                            <path d="m14.83 14.83 4.24 4.24"></path>
-                            <path d="m9.17 14.83-4.24 4.24"></path>
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="m12 3 0 9 6 3"></path>
                           </svg>
-                          Motor Nativo & Arquitectura Linux
+                          Control Analógico & Motor Rust
                         </h4>
                         <ul class="changelog-list">
-                          <li><strong>evo-daemon en Rust:</strong> Núcleo de bajo nivel con consumo inferior a 4 MB de RAM y 0% de CPU en reposo.</li>
-                          <li><strong>evo-desktop con Tauri v2:</strong> Interfaz gráfica nativa, reactiva y ligera sin la sobrecarga de Electron.</li>
-                          <li><strong>Compatibilidad de audio:</strong> Funciona armónicamente junto a PipeWire, PulseAudio y JACK.</li>
-                          <li><strong>Servicio systemd:</strong> Integración como servicio de usuario para arranque limpio y desatendido.</li>
-                        </ul>
-                      </div>
-                      <div class="changelog-group">
-                        <h4>
-                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
-                          </svg>
-                          Diseño & Personalización de Estudio
-                        </h4>
-                        <ul class="changelog-list">
-                          <li><strong>Arsian Dark (Predeterminado):</strong> Paleta oscura de alta legibilidad, diseñada para sesiones de estudio prolongadas.</li>
-                          <li><strong>Audient EVO (Opcional):</strong> Conmutador de tema para volver a la estética clásica oficial de hardware EVO.</li>
-                          <li><strong>Persistencia de configuración:</strong> Recuerda el tema seleccionado y los parámetros de conexión entre reinicios.</li>
+                          <li><strong>Ganancia analógica:</strong> Ajuste preciso de 0 dB a 58 dB en pasos de 0.5 dB y 2.0 dB para EVO 4.</li>
+                          <li><strong>Phantom Power +48V:</strong> Activación segura independiente por canal con protección de relé.</li>
+                          <li><strong>Bajo consumo de sistema:</strong> Menos de 4 MB de RAM y 0% de uso de CPU en reposo.</li>
+                          <li><strong>Auto-updater integrado:</strong> Notificación y actualización transparente con firmas Ed25519.</li>
                         </ul>
                       </div>
                     </div>

@@ -9,6 +9,20 @@ Releases and changelog entries follow [Conventional Commits](https://www.convent
 
 ---
 
+## [1.0.3] - 2026-10-29
+
+### Added
+
+- **Universal Tiling WM Support:** Automatic floating window rule configuration for Hyprland, Sway, Niri, River, i3, and bspwm in the installer (`install.sh`), with drop-in templates bundled in `packaging/window-rules/`.
+- **Single-Instance Enforcement:** Integrated `tauri-plugin-single-instance` in `evo-desktop` and IPC window focusing across compositors/WMs in `scripts/evo`, preventing duplicate instances.
+- **Native Arch / CachyOS Packaging:** Official `.pkg.tar.zst` package published to GitHub Releases and landing downloads with hardened `install-arch.sh` featuring automatic version normalization and release fallback.
+
+## [1.0.2] - 2026-10-26
+
+### Added
+
+- **LAN Control Settings:** In-app toggle for local network access, network interface status, and settings modal with detailed version information.
+
 ## [1.0.1] - 2026-10-26
 
 ### Fixed
