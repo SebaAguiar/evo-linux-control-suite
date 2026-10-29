@@ -17,8 +17,12 @@ set -euo pipefail
 
 PKG_NAME="evo-linux-control-suite-bin"
 PKG_VERSION="${EVO_VERSION:-1.0.3-1}"
+if [[ "${PKG_VERSION}" != *-* ]]; then
+  PKG_VERSION="${PKG_VERSION}-1"
+fi
 PKG_FILE="${PKG_NAME}-${PKG_VERSION}-x86_64.pkg.tar.zst"
 DOWNLOAD_BASE="${EVO_DOWNLOAD_BASE:-https://sebaaguiar.github.io/evo-linux-control-suite/downloads}"
+RELEASE_FALLBACK="https://github.com/SebaAguiar/evo-linux-control-suite/releases/download/v${PKG_VERSION%%-*}/${PKG_FILE}"
 ARCH_DEPS=(webkit2gtk-4.1 gtk3 gtk-layer-shell)
 
 if [[ -t 1 ]]; then
@@ -180,8 +184,11 @@ if [[ -z "${PKG_PATH}" ]]; then
   TMP_DIR="$(mktemp -d -t evo-arch-XXXXXX)"
 
   info "Descargando ${PKG_FILE}"
-  download "${DOWNLOAD_BASE}/${PKG_FILE}" "${TMP_DIR}/${PKG_FILE}" ||
-    die "No se pudo descargar ${DOWNLOAD_BASE}/${PKG_FILE}"
+  if ! download "${DOWNLOAD_BASE}/${PKG_FILE}" "${TMP_DIR}/${PKG_FILE}"; then
+    warn "No se pudo descargar desde la landing (${DOWNLOAD_BASE}); probando fallback a GitHub Releases..."
+    download "${RELEASE_FALLBACK}" "${TMP_DIR}/${PKG_FILE}" ||
+      die "No se pudo descargar ${PKG_FILE} ni de la landing ni de GitHub Releases."
+  fi
 
   if download "${DOWNLOAD_BASE}/SHA256SUMS" "${TMP_DIR}/SHA256SUMS" 2>/dev/null &&
     grep -q " ${PKG_FILE}\$" "${TMP_DIR}/SHA256SUMS"; then
