@@ -16,7 +16,7 @@
 set -euo pipefail
 
 PKG_NAME="evo-linux-control-suite-bin"
-PKG_VERSION="${EVO_VERSION:-1.0.1-1}"
+PKG_VERSION="${EVO_VERSION:-1.0.3-1}"
 PKG_FILE="${PKG_NAME}-${PKG_VERSION}-x86_64.pkg.tar.zst"
 DOWNLOAD_BASE="${EVO_DOWNLOAD_BASE:-https://sebaaguiar.github.io/evo-linux-control-suite/downloads}"
 ARCH_DEPS=(webkit2gtk-4.1 gtk3 gtk-layer-shell)

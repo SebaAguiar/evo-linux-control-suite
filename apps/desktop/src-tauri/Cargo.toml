@@ -1,6 +1,6 @@
 [package]
 name = "evo-desktop"
-version = "1.0.1"
+version = "1.0.3"
 description = "EVO Linux Control Suite — panel de control para la familia Audient EVO"
 authors = ["Arsian"]
 edition = "2024"

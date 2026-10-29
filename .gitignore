@@ -156,3 +156,8 @@ vite.config.ts.timestamp-*
 *.key
 *.key.pub
 .tauri/
+
+# IDE / local tooling
+.commandcode/
+apps/desktop/pnpm-lock.yaml
+
