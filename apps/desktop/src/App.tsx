@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import type { ActiveMode } from "./types";
+import type { ActiveMode, LoopbackStatus } from "./types";
 import { useEvoSocket } from "./hooks/useEvoSocket";
 import { useUpdater } from "./hooks/useUpdater";
 import { useTheme } from "./hooks/useTheme";
@@ -17,6 +17,8 @@ export function App() {
   const [activeMode, setActiveMode] = useState<ActiveMode>("ch0");
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDirectMonActive, setIsDirectMonActive] = useState(false);
+  const [isDirectMonLoading, setIsDirectMonLoading] = useState(false);
 
   const { theme, toggleTheme } = useTheme();
   const updater = useUpdater();
@@ -33,6 +35,52 @@ export function App() {
     showToast,
     meters,
   } = useEvoSocket();
+
+  const fetchLoopbackStatus = useCallback(async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/loopback");
+      if (res.ok) {
+        const data = (await res.json()) as LoopbackStatus;
+        setIsDirectMonActive(data.active);
+      }
+    } catch {
+      // Ignorar si el daemon aún no levantó
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLoopbackStatus();
+  }, [fetchLoopbackStatus]);
+
+  const handleToggleDirectMon = useCallback(async () => {
+    setIsDirectMonLoading(true);
+    const target = !isDirectMonActive;
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/loopback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: target, channels: [0] }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setIsDirectMonActive(target);
+        if (target) {
+          showToast(
+            "Ruteo Directo activo: Entrada 1 (Instrumento) a Auriculares (100% DAW)",
+            false
+          );
+        } else {
+          showToast("Ruteo Directo desactivado", false);
+        }
+      } else {
+        showToast(data.error || "No se pudo cambiar el ruteo directo", true);
+      }
+    } catch {
+      showToast("Error de conexión al configurar ruteo directo", true);
+    } finally {
+      setIsDirectMonLoading(false);
+    }
+  }, [isDirectMonActive, showToast]);
 
   useEffect(() => {
     if (updater.updateInfo) {
@@ -105,13 +153,18 @@ export function App() {
     );
   }, [showToast]);
 
+  const handleOpenQr = useCallback(() => setIsQrOpen(true), []);
+  const handleCloseQr = useCallback(() => setIsQrOpen(false), []);
+  const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
+  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+
   return (
     <div className="evo-window" data-theme={theme}>
       <ToastBanner toast={toast} />
-      <QrModal isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />
+      <QrModal isOpen={isQrOpen} onClose={handleCloseQr} />
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={handleCloseSettings}
         updateInfo={updater.updateInfo}
         downloading={updater.downloading}
         progress={updater.progress}
@@ -120,8 +173,8 @@ export function App() {
 
       <TitleBar
         connStatus={connStatus}
-        onOpenQr={() => setIsQrOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenQr={handleOpenQr}
+        onOpenSettings={handleOpenSettings}
         updateInfo={updater.updateInfo}
         downloading={updater.downloading}
         progress={updater.progress}
@@ -167,6 +220,18 @@ export function App() {
               </svg>
               <span>SmartGain</span>
             </div>
+
+            <button
+              className={`direct-mon-pill ${isDirectMonActive ? "active" : ""}`}
+              onClick={handleToggleDirectMon}
+              disabled={isDirectMonLoading}
+              title="Monitoreo Directo (Software): Rutea la entrada de instrumento directa a los auriculares en estéreo sin pasar por la mezcla interna de la placa"
+            >
+              <svg viewBox="0 0 24 24" className="direct-mon-icon">
+                <path d="M12 3a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2H5v-1a7 7 0 0 1 14 0v1h-2a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1a3 3 0 0 0 3-3v-7a9 9 0 0 0-9-9z"/>
+              </svg>
+              <span>{isDirectMonActive ? "Direct Mon: ON" : "Direct Mon"}</span>
+            </button>
           </section>
 
           {/* Center Column: Main Rotary Dial & Steppers */}

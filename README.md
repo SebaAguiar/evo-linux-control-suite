@@ -174,12 +174,50 @@ evo-desktop
 ### Mobile Web Control
 
 1. Ensure your smartphone or tablet is connected to the same local Wi-Fi network as your Linux PC.
-2. Run:
+2. Enable LAN access in the Desktop App (`Configuración > Red / Control Móvil`) or configure `~/.config/evo-suite/config.toml`:
+   ```toml
+   [server]
+   enabled = true
+   port = 8080
+   ```
+3. Run:
    ```bash
    evo qr
    ```
-3. Scan the generated QR code with your mobile camera.
-4. Enjoy real-time control from your phone with zero app installation!
+4. Scan the generated QR code with your mobile camera.
+5. Enjoy real-time control from your phone with zero app installation!
+
+#### Troubleshooting: Mobile & LAN Access
+
+If you cannot connect from your mobile device or receive a **"Connection timed out"** (Conexión expirada) error:
+
+1. **Allow Port 8080 in your Linux Firewall**:
+   Linux firewalls drop incoming connections from external devices by default.
+   - **UFW (Ubuntu, Debian, Arch / CachyOS)**:
+     ```bash
+     sudo ufw allow 8080/tcp
+     ```
+   - **Firewalld (Fedora, openSUSE, RHEL)**:
+     ```bash
+     sudo firewall-cmd --add-port=8080/tcp --permanent
+     sudo firewall-cmd --reload
+     ```
+2. **Verify the Daemon is Listening on your LAN**:
+   Check which interfaces `evo-daemon` is listening on:
+   ```bash
+   ss -tulpn | grep 8080
+   ```
+   You should see both `127.0.0.1:8080` and your local LAN IP (e.g. `192.168.1.X:8080`).
+   Run `evo status` to view the exact detected URL.
+3. **Restart the Daemon after manual config changes**:
+   If you edited `~/.config/evo-suite/config.toml` manually, restart the service to apply changes:
+   ```bash
+   evo restart
+   # or:
+   systemctl --user restart evo-daemon
+   ```
+4. **Router AP / Client Isolation**:
+   Ensure your phone and PC are connected to the same network and that your router does not have "AP Isolation" or "Guest Wi-Fi Isolation" turned on, as this blocks communication between wireless devices on the same subnet.
 
 ---
 

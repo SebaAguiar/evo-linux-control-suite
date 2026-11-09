@@ -27,3 +27,12 @@ export interface ServerInfo {
   port: number;
   server_enabled?: boolean;
 }
+
+export interface LoopbackStatus {
+  active: boolean;
+  channels: number[];
+  backend: string;
+  source?: string | null;
+  sink?: string | null;
+  error?: string | null;
+}

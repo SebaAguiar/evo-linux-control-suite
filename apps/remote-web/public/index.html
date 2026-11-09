@@ -919,6 +919,51 @@
       filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
     }
 
+    /* Direct Monitor Pill */
+    .direct-mon-pill {
+      width: 160px;
+      height: 34px;
+      border-radius: 17px;
+      background: var(--surface-elevated, #28292d);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      transition: all 0.2s ease;
+      color: var(--color-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 18px;
+    }
+
+    .direct-mon-pill:hover {
+      filter: brightness(1.15);
+      border-color: var(--color-border-hover);
+      color: var(--text-main);
+      transform: translateY(-1px);
+    }
+
+    .direct-mon-pill:active {
+      transform: translateY(1px);
+    }
+
+    .direct-mon-pill.active {
+      background: rgba(var(--color-accent-rgb), 0.16);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      box-shadow: 0 0 14px var(--color-accent-glow);
+    }
+
+    .direct-mon-pill .direct-mon-icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
     /* Audient EVO Infinity Logo at bottom */
     .evo-logo {
       display: flex;
@@ -1097,6 +1142,14 @@
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
         </svg>
       </div>
+
+      <!-- Direct Monitor Pill Button -->
+      <button class="direct-mon-pill" id="direct-mon-btn" title="Monitoreo Directo (Software): Rutea el Canal 1 (Instrumento) directo a auriculares sin usar el mezclador de la placa">
+        <svg viewBox="0 0 24 24" class="direct-mon-icon">
+          <path d="M12 3a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2H5v-1a7 7 0 0 1 14 0v1h-2a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1a3 3 0 0 0 3-3v-7a9 9 0 0 0-9-9z"/>
+        </svg>
+        <span id="direct-mon-label">Direct Mon</span>
+      </button>
 
       <!-- Audient EVO Logo -->
       <div class="evo-logo">
@@ -1510,6 +1563,56 @@
     smartgainBtn.addEventListener("click", () => {
       showToast("SmartGain: 1) Pulsa el botón verde en la placa. 2) Toca el canal (1 o 2) que titila. 3) Pulsa SmartGain de nuevo para calibrar.", false);
     });
+
+    // Direct Monitor Pill
+    let directMonActive = false;
+    const directMonBtn = document.getElementById("direct-mon-btn");
+    const directMonLabel = document.getElementById("direct-mon-label");
+
+    async function syncDirectMon() {
+      try {
+        const res = await fetch("/api/loopback");
+        if (res.ok) {
+          const data = await res.json();
+          directMonActive = !!data.active;
+          updateDirectMonUI();
+        }
+      } catch (e) {}
+    }
+
+    function updateDirectMonUI() {
+      if (directMonBtn) {
+        directMonBtn.classList.toggle("active", directMonActive);
+      }
+      if (directMonLabel) {
+        directMonLabel.textContent = directMonActive ? "Direct Mon: ON" : "Direct Mon";
+      }
+    }
+
+    if (directMonBtn) {
+      directMonBtn.addEventListener("click", async () => {
+        const target = !directMonActive;
+        try {
+          const res = await fetch("/api/loopback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: target, channels: [0] }),
+          });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            directMonActive = target;
+            updateDirectMonUI();
+            showToast(target ? "Ruteo Directo activo (100% DAW)" : "Ruteo Directo desactivado");
+          } else {
+            showToast(data.error || "Error al configurar ruteo directo", true);
+          }
+        } catch (e) {
+          showToast("Error de conexión al configurar ruteo directo", true);
+        }
+      });
+    }
+
+    syncDirectMon();
 
     // Step Buttons
     document.querySelectorAll(".step-btn").forEach(btn => {

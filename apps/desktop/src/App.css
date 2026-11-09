@@ -1056,6 +1056,52 @@ html, body {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
+/* Direct Monitor Pill */
+.direct-mon-pill {
+  width: 130px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--surface-elevated, #28292d);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+  color: var(--color-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+.direct-mon-pill:hover {
+  filter: brightness(1.15);
+  border-color: var(--color-border-hover);
+  color: var(--text-main);
+  transform: translateY(-1px);
+}
+
+.direct-mon-pill:active {
+  transform: translateY(1px);
+}
+
+.direct-mon-pill.active {
+  background: rgba(var(--color-accent-rgb), 0.16);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
+
+.direct-mon-pill .direct-mon-icon {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  transition: fill 0.2s ease;
+}
+
 /* Audient EVO Logo at bottom */
 .evo-logo {
   display: flex;

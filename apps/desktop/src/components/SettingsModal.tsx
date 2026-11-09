@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import type { LoopbackStatus } from "../types";
 import type { UpdateInfo } from "../hooks/useUpdater";
 
 interface SettingsModalProps {
@@ -36,9 +37,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   progress = 0,
   onDownloadUpdate,
 }) => {
-  const [tab, setTab] = useState<"network" | "about">("network");
+  const [tab, setTab] = useState<"audio" | "network" | "about">("audio");
   const [config, setConfig] = useState<ConfigInfo | null>(null);
   const [version, setVersion] = useState<VersionInfo | null>(null);
+  const [loopback, setLoopback] = useState<LoopbackStatus | null>(null);
+  const [loopbackLoading, setLoopbackLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -74,16 +77,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, []);
 
+  const fetchLoopback = useCallback(async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/loopback");
+      if (res.ok) {
+        const data = (await res.json()) as LoopbackStatus;
+        setLoopback(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const handleToggleLoopback = useCallback(
+    async (active: boolean) => {
+      setLoopbackLoading(true);
+      try {
+        const res = await fetch("http://127.0.0.1:8080/api/loopback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: active, channels: [0] }),
+        });
+        if (res.ok) {
+          fetchLoopback();
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoopbackLoading(false);
+      }
+    },
+    [fetchLoopback]
+  );
+
   useEffect(() => {
     if (!isOpen) return;
     fetchConfig();
     fetchVersion();
+    fetchLoopback();
+  }, [isOpen, fetchConfig, fetchVersion, fetchLoopback]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, fetchConfig, fetchVersion]);
+  }, [isOpen, onClose]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -116,7 +157,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="qr-modal-overlay" onClick={onClose}>
-      <div className="qr-modal-card" style={{ width: 380 }} onClick={(e) => e.stopPropagation()}>
+      <div className="qr-modal-card" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
         <div className="qr-modal-header">
           <div className="qr-modal-title">Configuración</div>
           <button className="qr-modal-close" onClick={onClose}>
@@ -124,24 +165,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, width: "100%" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, width: "100%" }}>
           <button
             className="qr-copy-btn"
             style={{
               flex: 1,
-              padding: "6px 10px",
-              background: tab === "network" ? "var(--color-accent)" : "var(--step-btn-bg)",
-              color: tab === "network" ? "#111827" : "var(--step-btn-color)",
+              padding: "6px 8px",
+              fontSize: 11,
+              background: tab === "audio" ? "var(--color-accent)" : "var(--step-btn-bg)",
+              color: tab === "audio" ? "#111827" : "var(--step-btn-color)",
             }}
-            onClick={() => setTab("network")}
+            onClick={() => setTab("audio")}
           >
-            Red / Control Móvil
+            Audio / Ruteo
           </button>
           <button
             className="qr-copy-btn"
             style={{
               flex: 1,
-              padding: "6px 10px",
+              padding: "6px 8px",
+              fontSize: 11,
+              background: tab === "network" ? "var(--color-accent)" : "var(--step-btn-bg)",
+              color: tab === "network" ? "#111827" : "var(--step-btn-color)",
+            }}
+            onClick={() => setTab("network")}
+          >
+            Red / Móvil
+          </button>
+          <button
+            className="qr-copy-btn"
+            style={{
+              flex: 1,
+              padding: "6px 8px",
+              fontSize: 11,
               background: tab === "about" ? "var(--color-accent)" : "var(--step-btn-bg)",
               color: tab === "about" ? "#111827" : "var(--step-btn-color)",
             }}
@@ -150,6 +206,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             Acerca de
           </button>
         </div>
+
+        {tab === "audio" && (
+          <div style={{ width: "100%", textAlign: "left", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ fontSize: 11, color: "var(--color-muted)", lineHeight: 1.4 }}>
+              Ruteo directo por software de baja latencia (&lt;2 ms) para tocar instrumentos o monitorear sin pasar por la suma analógica del mezclador de hardware.
+            </div>
+
+            <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={!!loopback?.active}
+                disabled={loopbackLoading}
+                onChange={(e) => handleToggleLoopback(e.target.checked)}
+              />
+              <span style={{ fontWeight: 600 }}>Ruteo directo Instrumento (Canal 1) a Auriculares</span>
+            </label>
+
+            <div style={{ fontSize: 11, color: "var(--color-muted)", lineHeight: 1.5, background: "rgba(0,0,0,0.2)", padding: "8px 10px", borderRadius: 8 }}>
+              <div>
+                <strong>Estado:</strong>{" "}
+                {loopback?.active ? (
+                  <span style={{ color: "var(--color-accent)", fontWeight: 600 }}>
+                    Activo ({loopback.backend})
+                  </span>
+                ) : (
+                  <span>Inactivo</span>
+                )}
+              </div>
+              {loopback?.source && <div><strong>Entrada:</strong> {loopback.source}</div>}
+              {loopback?.sink && <div><strong>Salida:</strong> {loopback.sink}</div>}
+              <div style={{ marginTop: 6, fontStyle: "italic", fontSize: 10.5 }}>
+                Nota: Al activarse, fija automáticamente el Monitor Mix de la placa al 100% DAW para evitar doble señal y cancelación de fase.
+              </div>
+            </div>
+          </div>
+        )}
 
         {tab === "network" && (
           <div style={{ width: "100%", textAlign: "left", display: "flex", flexDirection: "column", gap: 12 }}>

@@ -23,6 +23,7 @@
 //!   frontend o la detección de interfaces, y no cambian este contrato. La ruta
 //!   `/` sirve un marcador hasta que exista el *bundle*.
 
+pub mod loopback;
 pub mod peer;
 mod ws;
 
@@ -43,6 +44,7 @@ use evo_core::EvoCore;
 use evo_domain::{PersistedState, ServerConfig};
 use evo_persist::FileStateRepo;
 use evo_ports::StateRepo;
+pub use loopback::{LoopbackManager, LoopbackStatus};
 use tokio::net::TcpListener;
 use tokio::sync::{RwLock, oneshot};
 use tokio::task::JoinHandle;
@@ -56,6 +58,7 @@ pub(crate) struct AppState {
     pub(crate) config: Arc<RemoteConfig>,
     pub(crate) server_config: Arc<RwLock<ServerConfig>>,
     pub(crate) state_path: Option<PathBuf>,
+    pub(crate) loopback: Arc<LoopbackManager>,
 }
 
 /// Ajustes del servidor remoto.
@@ -137,11 +140,13 @@ impl RemoteHandle {
 pub fn router(core: Arc<EvoCore>, config: RemoteConfig) -> Router {
     let server_config = Arc::new(RwLock::new(config.server_config.clone()));
     let state_path = config.state_path.clone();
+    let loopback = Arc::new(LoopbackManager::new());
     let state = AppState {
         core,
         config: Arc::new(config),
         server_config,
         state_path,
+        loopback,
     };
     Router::new()
         .route("/healthz", get(healthz))
@@ -149,6 +154,7 @@ pub fn router(core: Arc<EvoCore>, config: RemoteConfig) -> Router {
         .route("/api/qr.svg", get(api_qr_svg))
         .route("/api/config", get(api_config))
         .route("/api/config/server", post(api_config_server))
+        .route("/api/loopback", get(api_loopback_get).post(api_loopback_set))
         .route("/api/version", get(api_version))
         .route("/", get(index))
         .route("/ws", get(ws::upgrade))
@@ -324,6 +330,69 @@ async fn api_version() -> Json<serde_json::Value> {
     }))
 }
 
+#[derive(serde::Deserialize)]
+struct LoopbackRequest {
+    enabled: bool,
+    #[serde(default)]
+    channels: Option<Vec<u8>>,
+}
+
+async fn api_loopback_get(State(state): State<AppState>) -> Json<LoopbackStatus> {
+    Json(state.loopback.status().await)
+}
+
+async fn api_loopback_set(
+    State(state): State<AppState>,
+    Json(req): Json<LoopbackRequest>,
+) -> Response {
+    if req.enabled {
+        let channels = req.channels.unwrap_or_else(|| vec![0]);
+        match state.loopback.enable(channels).await {
+            Ok(status) => {
+                // Al activar monitoreo directo por software, ajustamos automáticamente
+                // el balance del monitor mix de hardware al 100% DAW (pan = 1.0)
+                // para evitar doble señal o desfase con el mezclador de la placa.
+                let _ = state
+                    .core
+                    .submit(evo_domain::DeviceCommand::SetMonitorMix {
+                        out: 0,
+                        level_db: 0.0,
+                        pan: 1.0,
+                    })
+                    .await;
+
+                (
+                    StatusCode::OK,
+                    Json(serde_json::json!({
+                        "ok": true,
+                        "status": status,
+                        "tip": "Monitor mix de hardware fijado a 100% DAW para evitar doble señal"
+                    })),
+                )
+                    .into_response()
+            }
+            Err(err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "ok": false,
+                    "error": err
+                })),
+            )
+                .into_response(),
+        }
+    } else {
+        let status = state.loopback.disable().await;
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "ok": true,
+                "status": status
+            })),
+        )
+            .into_response()
+    }
+}
+
 /// Resuelve dinámicamente la IPv4 local activa consultando la tabla de
 /// enrutamiento del kernel (vía UDP efímero) o enumerando interfaces físicas.
 /// Refleja cambios de DHCP o cambio de red Wi-Fi/LAN al instante.
@@ -477,6 +546,7 @@ mod tests {
             config: Arc::new(config.clone()),
             server_config: Arc::new(RwLock::new(config.server_config.clone())),
             state_path: None,
+            loopback: Arc::new(LoopbackManager::new()),
         }))
         .await;
 
@@ -506,6 +576,7 @@ mod tests {
                 config: Arc::new(config.clone()),
                 server_config: Arc::new(RwLock::new(config.server_config.clone())),
                 state_path: None,
+                loopback: Arc::new(LoopbackManager::new()),
             }),
         )
         .await;
@@ -533,6 +604,7 @@ mod tests {
             config: Arc::new(config.clone()),
             server_config: Arc::new(RwLock::new(config.server_config.clone())),
             state_path: None,
+            loopback: Arc::new(LoopbackManager::new()),
         }))
         .await;
 
