@@ -16,7 +16,7 @@
 set -euo pipefail
 
 PKG_NAME="evo-linux-control-suite-bin"
-PKG_VERSION="${EVO_VERSION:-1.0.3-1}"
+PKG_VERSION="${EVO_VERSION:-1.0.4-1}"
 if [[ "${PKG_VERSION}" != *-* ]]; then
   PKG_VERSION="${PKG_VERSION}-1"
 fi

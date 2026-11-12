@@ -9,6 +9,17 @@ Releases and changelog entries follow [Conventional Commits](https://www.convent
 
 ---
 
+## [1.0.4] - 2026-11-12
+
+### Added
+
+- **Software Direct Monitoring (Low-Latency Loopback):** Route instrument (Channel 1 / JFET) directly to headphone outputs in stereo via PipeWire (`pw-link`) or PulseAudio (`module-loopback`) with <2 ms latency, bypassing the hardware monitor mixer to preserve 100% digital fidelity and stereo width. Includes quick-toggle `Direct Mon` on Desktop and Mobile web UI, and dedicated "Audio / Ruteo" settings tab. Automatically locks hardware monitor mix to 100% DAW to prevent comb filtering.
+
+### Fixed
+
+- **Settings Modal Reactive Loop:** Decoupled initial config fetching from modal event listeners in `SettingsModal.tsx` and `QrModal.tsx`, preventing rapid audio meter stream re-renders from re-fetching and resetting the LAN toggle back to unchecked.
+- **Firewall & Network Troubleshooting:** Added clear UFW and Firewalld port 8080 allowance instructions and socket verification steps to `README.md`.
+
 ## [1.0.3] - 2026-10-29
 
 ### Added
