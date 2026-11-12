@@ -37,7 +37,7 @@ bitflags = { version = "2.6", features = ["serde"] }
 futures-util = "0.3"
 # Enumeración de interfaces de red para resolver la IP de LAN a la que enlazar el
 # servidor remoto (SAD §8.4). Evita `getifaddrs` a mano.
-if-addrs = "0.13"
+if-addrs = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
